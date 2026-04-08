@@ -74,13 +74,18 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 .stat-card .sub { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
 
 /* TABLE */
-.table { width: 100%; border-collapse: collapse; }
-.table th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 500; padding: .6rem 1rem; border-bottom: 1px solid var(--border); }
-.table td { padding: .75rem 1rem; border-bottom: 1px solid var(--faint); vertical-align: middle; }
+.table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.table th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 500; padding: .6rem 1rem; border-bottom: 1px solid var(--border); position: relative; overflow: hidden; white-space: nowrap; }
+.table td { padding: .75rem 1rem; border-bottom: 1px solid var(--faint); vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .table tr:last-child td { border-bottom: none; }
 .table tr:hover td { background: var(--faint); }
 .table td a { color: var(--blue); text-decoration: none; font-weight: 500; cursor: pointer; }
 .table td a:hover { text-decoration: underline; }
+
+/* RESIZER */
+.resizer { position: absolute; right: 0; top: 0; height: 100%; width: 6px; cursor: col-resize; user-select: none; z-index: 1; }
+.resizer:hover, .resizer.active { background: var(--border); }
+.table-wrap { overflow-x: auto; }
 
 /* QUEUE */
 .queue-item { display: flex; align-items: flex-start; gap: 1rem; padding: .9rem 1.2rem; border-bottom: 1px solid var(--faint); }
@@ -215,10 +220,10 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
         <button class="btn btn-primary" onclick="openModal('company')">+ Add company</button>
       </div>
       <div class="card">
-        <table class="table">
+        <div class="table-wrap"><table class="table" id="tbl-companies">
           <thead><tr><th>Company</th><th>Industry</th><th>Status</th><th>Contacts</th><th>Open roles</th><th>Notes</th><th></th></tr></thead>
           <tbody id="companies-body"></tbody>
-        </table>
+        </table></div>
       </div>
     </div>
 
@@ -229,30 +234,49 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
         <button class="btn btn-primary" onclick="openModal('contact')">+ Add contact</button>
       </div>
       <div class="card">
-        <table class="table">
+        <div class="table-wrap"><table class="table" id="tbl-contacts">
           <thead><tr><th>Name</th><th>Title</th><th>Company</th><th>Relation</th><th>Last contact</th><th>Next step</th><th>Due</th><th></th></tr></thead>
           <tbody id="contacts-body"></tbody>
-        </table>
+        </table></div>
       </div>
       <div class="detail-panel mt3" id="contact-detail">
         <div class="card">
           <div class="card-header">
             <h2 id="detail-contact-name"></h2>
-            <button class="btn btn-ghost btn-sm" onclick="closeDetail()">← Back</button>
+            <div style="display:flex;gap:.5rem;">
+              <button class="btn btn-ghost btn-sm" onclick="editContactFromDetail()">Edit</button>
+              <button class="btn btn-ghost btn-sm" onclick="closeDetail()">← Back</button>
+            </div>
           </div>
           <div class="card-body">
             <div class="grid-2">
+              <!-- LEFT: info + linked apps -->
               <div>
                 <div class="field"><label>Title</label><span id="d-title"></span></div>
                 <div class="field mt2"><label>Company</label><span id="d-company"></span></div>
                 <div class="field mt2"><label>Relation</label><span id="d-relation"></span></div>
-                <div class="field mt2"><label>Next step</label><span id="d-nextstep"></span></div>
+                <div class="field mt2"><label>Notes</label><span id="d-notes" style="color:var(--muted);font-size:.84rem;line-height:1.5;"></span></div>
+                <div class="field mt2"><label>Next step</label><span id="d-nextstep" style="color:var(--amber);font-weight:500;"></span></div>
                 <div class="field mt2"><label>Due</label><span id="d-due" style="color:var(--red);font-weight:500;"></span></div>
+                <div class="field mt2">
+                  <label>Linked applications</label>
+                  <div id="d-linked-apps" style="margin-top:.3rem;display:flex;flex-direction:column;gap:.3rem;"></div>
+                  <div style="margin-top:.6rem;">
+                    <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.3rem;">Link to application</label>
+                    <div style="display:flex;gap:.5rem;">
+                      <select id="d-link-app-select" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.35rem .6rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);flex:1;"></select>
+                      <button class="btn btn-ghost btn-sm" onclick="linkAppToContact()">Link</button>
+                    </div>
+                  </div>
+                </div>
               </div>
+              <!-- RIGHT: activity log -->
               <div>
-                <div class="field"><label>Activity log</label></div>
-                <div id="contact-log-list" class="mt1"></div>
-                <button class="btn btn-ghost btn-sm mt2" onclick="openLogModal()" style="margin-top:.8rem;">+ Log interaction</button>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
+                  <div class="field" style="margin:0;"><label>Activity log</label></div>
+                  <button class="btn btn-primary btn-sm" onclick="openLogModal()">+ Log interaction</button>
+                </div>
+                <div id="contact-log-list"></div>
               </div>
             </div>
           </div>
@@ -268,16 +292,63 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
       </div>
       <div class="tabs">
         <div class="tab active" onclick="filterApps('all',this)">All</div>
+        <div class="tab" onclick="filterApps('Wishlist',this)">⭐ Wishlist</div>
         <div class="tab" onclick="filterApps('Draft',this)">Draft</div>
         <div class="tab" onclick="filterApps('Sent',this)">Sent</div>
         <div class="tab" onclick="filterApps('Interview',this)">Interview</div>
         <div class="tab" onclick="filterApps('Rejected',this)">Rejected</div>
       </div>
       <div class="card">
-        <table class="table">
-          <thead><tr><th>Role</th><th>Company</th><th>Status</th><th>Deadline</th><th>Follow-up</th><th>Contacts</th><th>Notes</th><th></th></tr></thead>
+        <div class="table-wrap"><table class="table" id="tbl-applications">
+          <thead><tr><th>Role</th><th>Company</th><th>Status</th><th>Match</th><th>Deadline</th><th>Follow-up</th><th>Contacts</th><th>Notes</th><th></th></tr></thead>
           <tbody id="applications-body"></tbody>
-        </table>
+        </table></div>
+      </div>
+
+      <!-- APPLICATION DETAIL -->
+      <div class="detail-panel mt3" id="app-detail">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 id="d-app-role"></h2>
+              <div id="d-app-company" style="font-size:.84rem;color:var(--muted);margin-top:.2rem;"></div>
+            </div>
+            <div style="display:flex;gap:.5rem;">
+              <button class="btn btn-ghost btn-sm" onclick="editAppFromDetail()">Edit</button>
+              <button class="btn btn-ghost btn-sm" onclick="closeAppDetail()">← Back</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="grid-2">
+              <!-- LEFT -->
+              <div>
+                <div class="field"><label>Status</label><span id="d-app-status"></span></div>
+                <div class="field mt2"><label>Contacts involved</label><span id="d-app-contacts" style="color:var(--muted);font-size:.84rem;"></span></div>
+                <div class="field mt2"><label>Deadline</label><span id="d-app-deadline" style="color:var(--amber);font-weight:500;"></span></div>
+                <div class="field mt2"><label>Follow-up date</label><span id="d-app-followup"></span></div>
+                <div class="field mt2"><label>Notes</label><span id="d-app-notes" style="color:var(--muted);font-size:.84rem;line-height:1.5;"></span></div>
+                <div id="d-app-match-block" style="display:none;" class="mt2">
+                  <div style="background:var(--faint);border-radius:8px;padding:.8rem;">
+                    <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;">AI match analysis</div>
+                    <div id="d-app-match-summary"></div>
+                  </div>
+                </div>
+              </div>
+              <!-- RIGHT: activity log -->
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
+                  <div class="field" style="margin:0;"><label>Activity log</label></div>
+                  <button class="btn btn-primary btn-sm" onclick="openAppLogModal()">+ Log activity</button>
+                </div>
+                <div id="app-log-list"></div>
+                <div id="d-app-suggestion" style="display:none;margin-top:1rem;background:var(--blue-light);border-radius:8px;padding:.8rem;">
+                  <div style="font-size:.72rem;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem;">💡 Suggested next action</div>
+                  <div id="d-app-suggestion-text" style="font-size:.84rem;color:var(--blue);"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -337,7 +408,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
       <div class="field"><label>Role title</label><input id="a-role"></div>
       <div class="field-row">
         <div class="field"><label>Company</label><select id="a-company"><option value="">— Select —</option></select></div>
-        <div class="field"><label>Status</label><select id="a-status"><option>Draft</option><option>Sent</option><option>Interview</option><option>Offer</option><option>Rejected</option></select></div>
+        <div class="field"><label>Status</label><select id="a-status"><option>Wishlist</option><option>Draft</option><option>Sent</option><option>Interview</option><option>Offer</option><option>Rejected</option></select></div>
       </div>
       <div class="field-row">
         <div class="field"><label>Deadline</label><input type="date" id="a-deadline"></div>
@@ -346,6 +417,23 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
       <div class="field"><label>Relevant contacts</label><input id="a-contacts"></div>
       <div class="field"><label>Outcome</label><input id="a-outcome"></div>
       <div class="field"><label>Notes</label><textarea id="a-notes"></textarea></div>
+      <div class="field">
+        <label>Job posting (paste full text)</label>
+        <textarea id="a-posting" style="min-height:120px;" placeholder="Paste the full job description here…"></textarea>
+      </div>
+      <div style="display:flex;gap:.5rem;align-items:center;">
+        <button class="btn btn-ghost btn-sm" id="a-analyse-btn" onclick="analysePosting()" type="button">✨ Analyse with AI</button>
+        <span id="a-analyse-status" style="font-size:.78rem;color:var(--muted);"></span>
+      </div>
+      <div id="a-analysis-preview" style="display:none;background:var(--faint);border-radius:8px;padding:1rem;">
+        <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem;">AI analysis</div>
+        <div id="a-analysis-content"></div>
+      </div>
+      <input type="hidden" id="a-requirements">
+      <input type="hidden" id="a-match-score">
+      <input type="hidden" id="a-match-strengths">
+      <input type="hidden" id="a-match-gaps">
+      <input type="hidden" id="a-match-angle">
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('application')">Cancel</button><button class="btn btn-primary" onclick="saveApplication()">Save</button></div>
   </div>
@@ -386,6 +474,23 @@ const SEED = {
     { id:'c6', name:'Bang & Olufsen', industry:'Consumer Electronics', status:'Prospect', roles:'Operations / People leadership', notes:'Dream employer. Passion for audio. Charlotte (VP) pending coffee. Also: Daniel, Grant Stevens-Bunner (Global Head of TA).' },
     { id:'c7', name:'Coloplast', industry:'MedTech', status:'Closed', roles:'Head of QA Project Management', notes:'Auto-rejected despite network from Troels. Closed for now.' },
     { id:'c8', name:'Novo Nordisk', industry:'Pharma', status:'On hold', roles:'—', notes:'Former employer 8 years. Made redundant late 2025. Keep network alive.' },
+    { id:'c9', name:'SimCorp', industry:'Fintech', status:'Active', roles:'Head of Strategy – People and Culture', notes:'Sent application.' },
+    { id:'c10', name:'Novonesis', industry:'Biotech', status:'Active', roles:'Manager Civil & Utility PM / Manager Fermentation Team', notes:'Two CV applications sent.' },
+    { id:'c11', name:'HOFOR', industry:'Utilities', status:'Active', roles:'Afdelingschef, Projekt- og Ledelsessupport', notes:'Danish application sent.' },
+    { id:'c12', name:'Bavarian Nordic', industry:'Pharma/Biotech', status:'Active', roles:'Senior Manager Manufacturing Technology', notes:'CV sent.' },
+    { id:'c13', name:'EDC', industry:'Real Estate', status:'Active', roles:'Drifts- og implementeringschef, Salgssupport', notes:'Application sent.' },
+    { id:'c14', name:'GN Audio', industry:'Audio/Tech', status:'Active', roles:'Multiple roles', notes:'4 applications sent across planning, L&D, platform dev, PMO.' },
+    { id:'c15', name:'WSAudiology', industry:'MedTech/Audio', status:'Active', roles:'Senior Manager PLM Process Management', notes:'CV sent.' },
+    { id:'c16', name:'Fujifilm Denmark', industry:'Pharma/Tech', status:'Active', roles:'Associate Director People & Culture Operations DK', notes:'CV sent.' },
+    { id:'c17', name:'Zealand Pharma', industry:'Pharma', status:'Active', roles:'Manager Strategy', notes:'CV sent.' },
+    { id:'c18', name:'LEGO', industry:'Consumer/Toys', status:'Active', roles:'Senior TMO Manager PELM', notes:'Application sent.' },
+    { id:'c19', name:'Garmin', industry:'Tech/Electronics', status:'Active', roles:'Nordic Supply Chain Manager', notes:'Application sent.' },
+    { id:'c20', name:'CIP', industry:'Infrastructure/Energy', status:'Active', roles:'Manager of Learning & Development', notes:'Application sent.' },
+    { id:'c21', name:'Alka', industry:'Insurance', status:'Active', roles:'Leder Kundevendt Digitalisering', notes:'Application sent.' },
+    { id:'c22', name:'Liewood', industry:'Consumer/Design', status:'Active', roles:'Head of People & Culture', notes:'Application sent.' },
+    { id:'c23', name:'PET', industry:'Public/Security', status:'Active', roles:'Sektionsleder OSINT', notes:'Application sent. Military intelligence background relevant.' },
+    { id:'c24', name:'NNE', industry:'Pharma Engineering', status:'Active', roles:'Manager Plant Design Department', notes:'CV sent.' },
+    { id:'c25', name:'Compass HR Group', industry:'Recruitment/HR', status:'Active', roles:'Head of Project Support', notes:'LinkedIn application sent.' },
   ],
   contacts: [
     { id:'ct1', name:'Anne', title:'VP People (family friend)', company:'LEO Pharma', companyId:'c1', relation:'Network', lastContact:'2026-04-02', outcome:'Facilitated intro to CHRO Helle Hedegaard Juhl. Application submitted.', nextStep:'Send thank you + check on timeline', due:'2026-04-10', notes:'Family friend. Key connector at LEO Pharma.', log:[{ date:'2026-04-02', type:'Phone call', outcome:'Anne confirmed Helle interest. Helped shape application angle.', nextStep:'Send thank you email', due:'2026-04-10' }] },
@@ -397,12 +502,35 @@ const SEED = {
     { id:'ct7', name:'Grant Stevens-Bunner', title:'Global Head of Talent Acquisition', company:'Bang & Olufsen', companyId:'c6', relation:'Network', lastContact:'', outcome:'', nextStep:'Reach out via Daniel — explore leadership openings', due:'2026-04-15', notes:'Key B&O contact. Access via Daniel.', log:[] },
   ],
   applications: [
-    { id:'a1', role:'Chief of Staff', company:'LEO Pharma', companyId:'c1', status:'Sent', deadline:'2026-04-15', followup:'2026-04-20', contacts:'Anne, Simone', outcome:'Application submitted early April 2026', notes:'Reporting to CHRO Helle Hedegaard Juhl. Global People & Corporate Affairs. CoS-adjacent experience + Armed Forces T&O Officer.' },
-    { id:'a2', role:'Head of Project Support', company:'Rockwool', companyId:'c2', status:'Sent', deadline:'2026-04-10', followup:'2026-04-17', contacts:'—', outcome:'Submitted. Awaiting response.', notes:'People leadership + PMO governance. Used Rockwool CV version (English).' },
-    { id:'a3', role:'Portfolio & Value Lead', company:'Abacus Medicine', companyId:'c3', status:'Sent', deadline:'2026-04-12', followup:'2026-04-19', contacts:'—', outcome:'Submitted. Awaiting response.', notes:'Portfolio governance. Used Abacus CV version.' },
-    { id:'a4', role:'Supply Chain Director', company:'Weibel', companyId:'c4', status:'Sent', deadline:'2026-04-08', followup:'2026-04-12', contacts:'Dorthe Gottwald Finne', outcome:'Submitted. Contact made with Dorthe.', notes:'Military background highly relevant. Used Weibel CV version.' },
-    { id:'a5', role:'Head of P&BC Office', company:'Danske Bank', companyId:'c5', status:'Sent', deadline:'2026-04-14', followup:'2026-04-18', contacts:'Peter, Christian Skovgaard Thorsen', outcome:'Submitted. Two warm contacts internally.', notes:'Portfolio governance + people leadership.' },
-    { id:'a6', role:'Head of QA Project Management', company:'Coloplast', companyId:'c7', status:'Rejected', deadline:'2026-03-20', followup:'', contacts:'Troels', outcome:'Auto-rejected despite network recommendation.', notes:'Keep Troels warm.' },
+    { id:'a1', role:'Chief of Staff, Global People & Corporate Affairs', company:'LEO Pharma', companyId:'c1', status:'Sent', deadline:'2026-04-15', followup:'2026-04-20', contacts:'Anne, Simone', outcome:'Submitted early April 2026', notes:'Ans. + CV. Reporting to CHRO Helle Hedegaard Juhl.', appLog:[] },
+    { id:'a2', role:'Head of P&BC Office in Technology & Services', company:'Danske Bank', companyId:'c5', status:'Sent', deadline:'2026-04-14', followup:'2026-04-18', contacts:'Peter, Christian Skovgaard Thorsen', outcome:'Submitted. Two warm contacts.', notes:'Ansøgning.', appLog:[] },
+    { id:'a3', role:'Head of Strategy – People and Culture', company:'SimCorp', companyId:'c9', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted. Awaiting.', notes:'Ansøgning.', appLog:[] },
+    { id:'a4', role:'Supply Chain Director', company:'Weibel Scientific', companyId:'c4', status:'Sent', deadline:'2026-04-08', followup:'2026-04-12', contacts:'Dorthe Gottwald Finne', outcome:'Submitted. Contact made with Dorthe.', notes:'Ans. + CV. Military background relevant.', appLog:[] },
+    { id:'a5', role:'Director, Production Engineering & Ops PM', company:'Weibel Scientific', companyId:'c4', status:'Sent', deadline:'', followup:'2026-04-18', contacts:'Dorthe Gottwald Finne', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
+    { id:'a6', role:'PMO Manager, Innovation Project Management', company:'Coloplast', companyId:'c7', status:'Sent', deadline:'', followup:'2026-04-18', contacts:'Troels', outcome:'Submitted.', notes:'Ans. + CV.', appLog:[] },
+    { id:'a7', role:'Head of QA Project Management', company:'Coloplast', companyId:'c7', status:'Rejected', deadline:'2026-03-20', followup:'', contacts:'Troels', outcome:'Auto-rejected despite network recommendation.', notes:'Ans. + CV. Keep Troels warm.', appLog:[{date:'2026-03-20',type:'Email',outcome:'Auto-rejection received. Network recommendation from Troels did not help.',nextStep:'Keep Troels warm for other openings',due:''}] },
+    { id:'a8', role:'Senior Project Portfolio Manager', company:'Abacus Medicine', companyId:'c3', status:'Sent', deadline:'', followup:'2026-04-19', contacts:'', outcome:'Submitted.', notes:'Ans. + CV.', appLog:[] },
+    { id:'a9', role:'Head of Project Support', company:'Rockwool', companyId:'c2', status:'Sent', deadline:'2026-04-10', followup:'2026-04-17', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
+    { id:'a10', role:'Manager, Civil & Utility Project Managers', company:'Novonesis', companyId:'c10', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
+    { id:'a11', role:'Manager, Fermentation Team', company:'Novonesis', companyId:'c10', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
+    { id:'a12', role:'Afdelingschef, Projekt- og Ledelsessupport', company:'HOFOR', companyId:'c11', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning (dansk).', appLog:[] },
+    { id:'a13', role:'Senior Manager, Manufacturing Technology', company:'Bavarian Nordic', companyId:'c12', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
+    { id:'a14', role:'Drifts- og implementeringschef, Salgssupport', company:'EDC', companyId:'c13', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
+    { id:'a15', role:'Head of Planning EMEA, Global Operations', company:'GN Audio', companyId:'c14', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
+    { id:'a16', role:'Global Head of Talent, Learning & Development', company:'GN Audio', companyId:'c14', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
+    { id:'a17', role:'Head of Platform Development', company:'GN Audio', companyId:'c14', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
+    { id:'a18', role:'PMO & Performance Manager, Global Operations', company:'GN Audio', companyId:'c14', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
+    { id:'a19', role:'Senior Manager, PLM Process Management', company:'WSAudiology', companyId:'c15', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
+    { id:'a20', role:'Associate Director, People & Culture Operations DK', company:'Fujifilm Denmark', companyId:'c16', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
+    { id:'a21', role:'Manager, Strategy', company:'Zealand Pharma', companyId:'c17', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
+    { id:'a22', role:'Senior TMO Manager, PELM', company:'LEGO', companyId:'c18', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
+    { id:'a23', role:'Nordic Supply Chain Manager', company:'Garmin', companyId:'c19', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
+    { id:'a24', role:'Manager of Learning & Development', company:'CIP', companyId:'c20', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
+    { id:'a25', role:'Leder, Kundevendt Digitalisering', company:'Alka', companyId:'c21', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
+    { id:'a26', role:'Head of People & Culture', company:'Liewood', companyId:'c22', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
+    { id:'a27', role:'Sektionsleder, OSINT', company:'PET', companyId:'c23', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning. Military intelligence background relevant.', appLog:[] },
+    { id:'a28', role:'Manager for Plant Design Department', company:'NNE', companyId:'c24', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
+    { id:'a29', role:'Head of Project Support', company:'Compass HR Group', companyId:'c25', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'LinkedIn application.', appLog:[] },
   ]
 };
 
@@ -477,8 +605,8 @@ function renderDashboard() {
       </div>
     </div>`).join('') : '<div class="empty"><div class="empty-icon">✅</div><p>Nothing urgent in the next 48 hours</p></div>';
 
-  const colors = {Draft:'grey',Sent:'blue',Interview:'green',Offer:'purple',Rejected:'red'};
-  document.getElementById('pipeline-view').innerHTML = ['Draft','Sent','Interview','Offer','Rejected'].map(s=>{
+  const colors = {Wishlist:'purple',Draft:'grey',Sent:'blue',Interview:'green',Offer:'green',Rejected:'red'};
+  document.getElementById('pipeline-view').innerHTML = ['Wishlist','Draft','Sent','Interview','Offer','Rejected'].map(s=>{
     const apps=db.applications.filter(a=>a.status===s);
     return apps.length?`<div class="mt1"><span class="badge badge-${colors[s]}">${s} · ${apps.length}</span> ${apps.map(a=>`<span style="font-size:.8rem;color:var(--muted);margin-left:.5rem;">${a.company}</span>`).join('')}</div>`:'';
   }).join('');
@@ -532,10 +660,62 @@ function openContactDetail(id) {
   document.getElementById('d-title').textContent = c.title||'—';
   document.getElementById('d-company').textContent = c.company||'—';
   document.getElementById('d-relation').innerHTML = `<span class="badge badge-blue">${c.relation}</span>`;
+  document.getElementById('d-notes').textContent = c.notes||'—';
   document.getElementById('d-nextstep').textContent = c.nextStep||'—';
   document.getElementById('d-due').textContent = c.due?formatDate(c.due):'—';
   renderLog(c);
+  renderLinkedApps(c);
+  populateAppLinkSelect(c);
   document.getElementById('contact-detail').classList.add('open');
+}
+
+function renderLinkedApps(c) {
+  const linked = c.linkedApps || [];
+  const el = document.getElementById('d-linked-apps');
+  if (!linked.length) { el.innerHTML = '<span style="font-size:.8rem;color:var(--muted);">None linked yet</span>'; return; }
+  el.innerHTML = linked.map(appId => {
+    const a = db.applications.find(x=>x.id===appId);
+    if (!a) return '';
+    const sc={Wishlist:'purple',Draft:'grey',Sent:'blue',Interview:'green',Offer:'green',Rejected:'red'};
+    return `<div style="display:flex;align-items:center;gap:.5rem;">
+      <span class="badge badge-${sc[a.status]||'grey'}">${a.status}</span>
+      <span style="font-size:.84rem;">${a.role} @ ${a.company}</span>
+      <button onclick="unlinkApp('${appId}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:.8rem;margin-left:auto;">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function populateAppLinkSelect(c) {
+  const linked = c.linkedApps || [];
+  const sel = document.getElementById('d-link-app-select');
+  const unlinked = db.applications.filter(a => !linked.includes(a.id));
+  sel.innerHTML = unlinked.length
+    ? '<option value="">— Select application —</option>' + unlinked.map(a=>`<option value="${a.id}">${a.role} @ ${a.company}</option>`).join('')
+    : '<option value="">All applications linked</option>';
+}
+
+function linkAppToContact() {
+  const appId = document.getElementById('d-link-app-select').value;
+  if (!appId || !currentContactId) return;
+  const c = db.contacts.find(x=>x.id===currentContactId);
+  c.linkedApps = c.linkedApps || [];
+  if (!c.linkedApps.includes(appId)) c.linkedApps.push(appId);
+  saveDB();
+  renderLinkedApps(c);
+  populateAppLinkSelect(c);
+}
+
+function unlinkApp(appId) {
+  const c = db.contacts.find(x=>x.id===currentContactId);
+  if (!c) return;
+  c.linkedApps = (c.linkedApps||[]).filter(id=>id!==appId);
+  saveDB();
+  renderLinkedApps(c);
+  populateAppLinkSelect(c);
+}
+
+function editContactFromDetail() {
+  if (currentContactId) editContact(currentContactId);
 }
 
 function renderLog(c) {
@@ -558,19 +738,24 @@ function closeDetail() {
 
 // APPLICATIONS
 function renderApplications() {
-  const sc={Draft:'grey',Sent:'blue',Interview:'green',Offer:'purple',Rejected:'red'};
+  const sc={Wishlist:'purple',Draft:'grey',Sent:'blue',Interview:'green',Offer:'green',Rejected:'red'};
   const filtered = appFilter==='all' ? db.applications : db.applications.filter(a=>a.status===appFilter);
-  document.getElementById('applications-body').innerHTML = filtered.map(a=>`
-    <tr>
-      <td><strong>${a.role}</strong></td>
+  document.getElementById('applications-body').innerHTML = filtered.map(a=>{
+    const score = a.matchScore ? parseInt(a.matchScore) : null;
+    const scoreColor = score ? (score>=75?'var(--green)':score>=55?'var(--amber)':'var(--red)') : 'var(--muted)';
+    const scoreHtml = score ? `<span style="font-weight:700;color:${scoreColor};">${score}%</span>` : '—';
+    return `<tr>
+      <td><strong><a onclick="openAppDetail('${a.id}')" style="cursor:pointer;">${a.role}</a></strong></td>
       <td>${a.company}</td>
       <td><span class="badge badge-${sc[a.status]||'grey'}">${a.status}</span></td>
+      <td>${scoreHtml}</td>
       <td>${a.deadline?`<span style="color:var(--amber);font-weight:500;">${formatDate(a.deadline)}</span>`:'—'}</td>
       <td>${a.followup?formatDate(a.followup):'—'}</td>
       <td style="font-size:.8rem;color:var(--muted);">${a.contacts||'—'}</td>
       <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.8rem;color:var(--muted);">${a.notes||''}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="editApplication('${a.id}')">Edit</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('')||'<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">No applications</td></tr>';
 }
 
 function filterApps(status, el) {
@@ -646,10 +831,33 @@ function saveApplication() {
   const editId=document.getElementById('app-edit-id').value;
   const companyId=document.getElementById('a-company').value;
   const companyName=companyId?(db.companies.find(c=>c.id===companyId)||{}).name||'':'';
-  const obj={id:editId||newId(),role:document.getElementById('a-role').value.trim(),company:companyName,companyId,status:document.getElementById('a-status').value,deadline:document.getElementById('a-deadline').value,followup:document.getElementById('a-followup').value,contacts:document.getElementById('a-contacts').value.trim(),outcome:document.getElementById('a-outcome').value.trim(),notes:document.getElementById('a-notes').value.trim()};
+  const obj={
+    id:editId||newId(),
+    role:document.getElementById('a-role').value.trim(),
+    company:companyName, companyId,
+    status:document.getElementById('a-status').value,
+    deadline:document.getElementById('a-deadline').value,
+    followup:document.getElementById('a-followup').value,
+    contacts:document.getElementById('a-contacts').value.trim(),
+    outcome:document.getElementById('a-outcome').value.trim(),
+    notes:document.getElementById('a-notes').value.trim(),
+    posting:document.getElementById('a-posting').value.trim(),
+    requirements:document.getElementById('a-requirements').value,
+    matchScore:document.getElementById('a-match-score').value,
+    matchStrengths:document.getElementById('a-match-strengths').value,
+    matchGaps:document.getElementById('a-match-gaps').value,
+    matchAngle:document.getElementById('a-match-angle').value,
+  };
   if(!obj.role)return alert('Role required');
   if(editId){const i=db.applications.findIndex(a=>a.id===editId);db.applications[i]=obj;}else db.applications.push(obj);
-  saveDB();closeModal('application');document.getElementById('app-edit-id').value='';renderApplications();updateStats();
+  saveDB();closeModal('application');document.getElementById('app-edit-id').value='';
+  document.getElementById('a-analysis-preview').style.display='none';
+  document.getElementById('a-requirements').value='';
+  document.getElementById('a-match-score').value='';
+  document.getElementById('a-match-strengths').value='';
+  document.getElementById('a-match-gaps').value='';
+  document.getElementById('a-match-angle').value='';
+  renderApplications();updateStats();
 }
 function editApplication(id) {
   const a=db.applications.find(x=>x.id===id);
@@ -664,6 +872,15 @@ function editApplication(id) {
   document.getElementById('a-contacts').value=a.contacts||'';
   document.getElementById('a-outcome').value=a.outcome||'';
   document.getElementById('a-notes').value=a.notes||'';
+  document.getElementById('a-posting').value=a.posting||'';
+  document.getElementById('a-requirements').value=a.requirements||'';
+  document.getElementById('a-match-score').value=a.matchScore||'';
+  document.getElementById('a-match-strengths').value=a.matchStrengths||'';
+  document.getElementById('a-match-gaps').value=a.matchGaps||'';
+  document.getElementById('a-match-angle').value=a.matchAngle||'';
+  // Show existing analysis if present
+  if (a.matchScore) showAnalysisPreview(a.matchScore, a.matchStrengths, a.matchGaps, a.matchAngle, a.requirements);
+  else document.getElementById('a-analysis-preview').style.display='none';
   openModal('application');
 }
 
@@ -684,6 +901,192 @@ function saveLog() {
   if(entry.nextStep)c.nextStep=entry.nextStep;
   if(entry.due)c.due=entry.due;
   saveDB();closeModal('log');renderLog(c);
+}
+
+// ─── APPLICATION DETAIL ──────────────────────────────────────
+let currentAppId = null;
+
+function openAppDetail(id) {
+  currentAppId = id;
+  const a = db.applications.find(x=>x.id===id);
+  const sc={Wishlist:'purple',Draft:'grey',Sent:'blue',Interview:'green',Offer:'green',Rejected:'red'};
+  document.getElementById('d-app-role').textContent = a.role;
+  document.getElementById('d-app-company').textContent = a.company;
+  document.getElementById('d-app-status').innerHTML = `<span class="badge badge-${sc[a.status]||'grey'}">${a.status}</span>`;
+  document.getElementById('d-app-contacts').textContent = a.contacts || 'None logged yet';
+  document.getElementById('d-app-deadline').textContent = a.deadline ? formatDate(a.deadline) : '—';
+  document.getElementById('d-app-followup').textContent = a.followup ? formatDate(a.followup) : '—';
+  document.getElementById('d-app-notes').textContent = a.notes || '—';
+
+  // Match block
+  if (a.matchScore) {
+    const score = parseInt(a.matchScore);
+    const col = score>=75?'var(--green)':score>=55?'var(--amber)':'var(--red)';
+    const strengths = JSON.parse(a.matchStrengths||'[]');
+    const gaps = JSON.parse(a.matchGaps||'[]');
+    document.getElementById('d-app-match-summary').innerHTML = `
+      <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:${col};margin-bottom:.4rem;">${score}% match</div>
+      ${strengths.length?`<div style="font-size:.8rem;margin-bottom:.3rem;"><strong style="color:var(--green);">✅ Strengths:</strong> ${strengths.join(' · ')}</div>`:''}
+      ${gaps.length?`<div style="font-size:.8rem;"><strong style="color:var(--amber);">⚠️ Gaps:</strong> ${gaps.join(' · ')}</div>`:''}
+      ${a.matchAngle?`<div style="font-size:.8rem;margin-top:.4rem;color:var(--blue);">💡 ${a.matchAngle}</div>`:''}`;
+    document.getElementById('d-app-match-block').style.display='block';
+  } else {
+    document.getElementById('d-app-match-block').style.display='none';
+  }
+
+  renderAppLog(a);
+  suggestNextAction(a);
+  document.getElementById('app-detail').classList.add('open');
+}
+
+function renderAppLog(a) {
+  const log = a.appLog || [];
+  document.getElementById('app-log-list').innerHTML = log.length
+    ? [...log].reverse().map(l=>`
+      <div class="log-entry">
+        <div class="log-dot"></div>
+        <div>
+          <div class="log-date">${formatDate(l.date)} · ${l.type}${l.who?' · '+l.who:''}</div>
+          <div class="log-text">${l.outcome}</div>
+          ${l.nextStep?`<div class="log-next">→ ${l.nextStep}${l.due?' by '+formatDate(l.due):''}</div>`:''}
+        </div>
+      </div>`).join('')
+    : '<p style="color:var(--muted);font-size:.82rem;">No activity logged yet. Log your first interaction above.</p>';
+}
+
+function suggestNextAction(a) {
+  const log = a.appLog || [];
+  const daysSent = a.deadline ? Math.floor((new Date()-new Date(a.deadline))/86400000) : null;
+  let suggestion = '';
+
+  if (a.status === 'Sent' && !log.length) {
+    suggestion = 'No activity logged yet. Consider finding a contact at ' + a.company + ' on LinkedIn and sending a warm outreach message.';
+  } else if (a.status === 'Sent' && log.length) {
+    const last = log[log.length-1];
+    const daysSince = Math.floor((new Date()-new Date(last.date))/86400000);
+    if (daysSince > 14) suggestion = `It's been ${daysSince} days since your last activity. Consider a polite follow-up to check on the timeline.`;
+    else if (last.nextStep) suggestion = `Your logged next step: "${last.nextStep}"`;
+  } else if (a.status === 'Interview') {
+    suggestion = 'Prepare: research the panel, review the job posting, and prepare 3 strong STAR-format examples.';
+  } else if (a.status === 'Wishlist') {
+    suggestion = 'Find a warm contact at ' + a.company + ' before applying — a referral significantly increases your chances.';
+  }
+
+  const el = document.getElementById('d-app-suggestion');
+  if (suggestion) {
+    document.getElementById('d-app-suggestion-text').textContent = suggestion;
+    el.style.display = 'block';
+  } else { el.style.display = 'none'; }
+}
+
+function closeAppDetail() {
+  document.getElementById('app-detail').classList.remove('open');
+  currentAppId = null;
+}
+
+function editAppFromDetail() { if (currentAppId) editApplication(currentAppId); }
+
+function openAppLogModal() {
+  document.getElementById('applog-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('applog-who').value = '';
+  document.getElementById('applog-outcome').value = '';
+  document.getElementById('applog-nextstep').value = '';
+  document.getElementById('applog-due').value = '';
+  openModal('applog');
+}
+
+function saveAppLog() {
+  if (!currentAppId) return;
+  const entry = {
+    date: document.getElementById('applog-date').value,
+    type: document.getElementById('applog-type').value,
+    who: document.getElementById('applog-who').value.trim(),
+    outcome: document.getElementById('applog-outcome').value.trim(),
+    nextStep: document.getElementById('applog-nextstep').value.trim(),
+    due: document.getElementById('applog-due').value,
+  };
+  const a = db.applications.find(x=>x.id===currentAppId);
+  a.appLog = a.appLog || [];
+  a.appLog.push(entry);
+  if (entry.nextStep) a.followup = entry.due || a.followup;
+  saveDB();
+  closeModal('applog');
+  renderAppLog(a);
+  suggestNextAction(a);
+}
+const MAGNUS_PROFILE = `Magnus Fillip Pedersen. Experienced leader with 10+ years from Novo Nordisk (8 years) and the Danish Armed Forces.
+Key roles: Manager PMO & Training Academy (Novo Nordisk), Training & Intelligence Officer (Den Kongelige Livgarde), Platoon Leader.
+Core strengths: People leadership, PMO governance, capability building, change management, learning & development, cross-functional collaboration, psychological safety, structure that outlasts him.
+Key metrics: Led 10 PMs, trained 40 local PMs, 11 global sites, 30-50% deviation reduction, >50% time-to-perform improvement, 210M pen fills (+24% OEE), DKK 10M savings, 2000+ soldiers trained.
+Education: Master in International Security and Law (SDU), Bachelor in Land Military Operations (Royal Danish Military Academy).
+Target: Roles at the intersection of people leadership, L&D, OD, and PMO/portfolio governance. Salary ~75,000 DKK/month. Hybrid 2-3 days office.`;
+
+async function analysePosting() {
+  const posting = document.getElementById('a-posting').value.trim();
+  if (!posting) return alert('Paste the job posting first');
+  const btn = document.getElementById('a-analyse-btn');
+  const status = document.getElementById('a-analyse-status');
+  btn.disabled = true; status.textContent = 'Analysing…';
+
+  const systemPrompt = `You are a career coach and job application strategist. Analyse a job posting against a candidate profile.
+Respond ONLY with valid JSON — no markdown, no explanation:
+{
+  "requirements": ["req 1", "req 2", "req 3", "req 4", "req 5"],
+  "matchScore": 85,
+  "strengths": ["strength match 1", "strength match 2", "strength match 3"],
+  "gaps": ["gap 1", "gap 2"],
+  "angle": "The one strategic angle this candidate should lead with in their application — 2-3 sentences."
+}
+matchScore is 0-100. requirements are the 5 most important requirements from the posting. strengths are where the candidate clearly matches. gaps are honest gaps to be aware of.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: `Candidate profile:\n${MAGNUS_PROFILE}\n\nJob posting:\n${posting}` }]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content?.[0]?.text || '';
+    const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
+
+    document.getElementById('a-requirements').value = JSON.stringify(parsed.requirements);
+    document.getElementById('a-match-score').value = parsed.matchScore;
+    document.getElementById('a-match-strengths').value = JSON.stringify(parsed.strengths);
+    document.getElementById('a-match-gaps').value = JSON.stringify(parsed.gaps);
+    document.getElementById('a-match-angle').value = parsed.angle;
+
+    showAnalysisPreview(parsed.matchScore, JSON.stringify(parsed.strengths), JSON.stringify(parsed.gaps), parsed.angle, JSON.stringify(parsed.requirements));
+    status.textContent = 'Done ✓';
+  } catch(e) {
+    status.textContent = 'Failed — try again';
+    alert('Analysis failed: ' + e.message);
+  }
+  btn.disabled = false;
+}
+
+function showAnalysisPreview(score, strengthsJson, gapsJson, angle, reqJson) {
+  const scoreNum = parseInt(score)||0;
+  const scoreColor = scoreNum >= 75 ? 'var(--green)' : scoreNum >= 55 ? 'var(--amber)' : 'var(--red)';
+  const strengths = JSON.parse(strengthsJson||'[]');
+  const gaps = JSON.parse(gapsJson||'[]');
+  const reqs = JSON.parse(reqJson||'[]');
+
+  document.getElementById('a-analysis-content').innerHTML = `
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.8rem;">
+      <div style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:${scoreColor};">${scoreNum}%</div>
+      <div style="font-size:.82rem;color:var(--muted);">match with your profile</div>
+    </div>
+    ${reqs.length?`<div style="margin-bottom:.7rem;"><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">Key requirements</div>${reqs.map(r=>`<div style="font-size:.82rem;padding:.15rem 0;">• ${r}</div>`).join('')}</div>`:''}
+    ${strengths.length?`<div style="margin-bottom:.7rem;"><div style="font-size:.72rem;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">✅ Your strengths</div>${strengths.map(s=>`<div style="font-size:.82rem;padding:.15rem 0;">${s}</div>`).join('')}</div>`:''}
+    ${gaps.length?`<div style="margin-bottom:.7rem;"><div style="font-size:.72rem;color:var(--amber);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">⚠️ Gaps to address</div>${gaps.map(g=>`<div style="font-size:.82rem;padding:.15rem 0;">${g}</div>`).join('')}</div>`:''}
+    ${angle?`<div style="border-top:1px solid var(--border);padding-top:.7rem;margin-top:.3rem;"><div style="font-size:.72rem;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">💡 Your angle</div><div style="font-size:.84rem;line-height:1.5;">${angle}</div></div>`:''}
+  `;
+  document.getElementById('a-analysis-preview').style.display = 'block';
 }
 
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
@@ -794,10 +1197,98 @@ function confirmImport(jsonStr) {
   },100);
 }
 
+// ─── COLUMN RESIZER ──────────────────────────────────────────
+function makeResizable(tableId) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  const cols = table.querySelectorAll('th');
+  const STORE_KEY = 'crm_col_' + tableId;
+  const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+
+  cols.forEach((th, i) => {
+    // Restore saved width
+    if (saved && saved[i]) th.style.width = saved[i];
+
+    // Skip last column (actions)
+    if (i === cols.length - 1) return;
+
+    const resizer = document.createElement('div');
+    resizer.classList.add('resizer');
+    th.appendChild(resizer);
+
+    let startX, startW;
+
+    resizer.addEventListener('mousedown', e => {
+      startX = e.pageX;
+      startW = th.offsetWidth;
+      resizer.classList.add('active');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      const onMove = e => {
+        const diff = e.pageX - startX;
+        const newW = Math.max(60, startW + diff);
+        th.style.width = newW + 'px';
+      };
+
+      const onUp = () => {
+        resizer.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        // Save widths
+        const widths = [...cols].map(c => c.style.width || '');
+        localStorage.setItem(STORE_KEY, JSON.stringify(widths));
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
+// Init resizers after each render
+const _origRenderCompanies = renderCompanies;
+renderCompanies = function() { _origRenderCompanies(); makeResizable('tbl-companies'); };
+const _origRenderContacts = renderContacts;
+renderContacts = function() { _origRenderContacts(); makeResizable('tbl-contacts'); };
+const _origRenderApplications = renderApplications;
+renderApplications = function() { _origRenderApplications(); makeResizable('tbl-applications'); };
+
 // INIT
 renderDashboard();
 updateStats();
 </script>
+
+<!-- APP LOG MODAL -->
+<div class="modal-overlay" id="modal-applog">
+  <div class="modal">
+    <div class="modal-header"><h3>Log activity on application</h3><button class="modal-close" onclick="closeModal('applog')">✕</button></div>
+    <div class="modal-body">
+      <div class="field-row">
+        <div class="field"><label>Date</label><input type="date" id="applog-date"></div>
+        <div class="field"><label>Type</label>
+          <select id="applog-type">
+            <option>Email sent</option><option>Email received</option><option>Phone call</option>
+            <option>LinkedIn message</option><option>Interview</option><option>Coffee meeting</option>
+            <option>Rejection received</option><option>Offer received</option><option>Internal referral</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Who was involved</label><input id="applog-who" placeholder="e.g. Recruiter Sarah, Hiring manager Jakob"></div>
+      <div class="field"><label>What happened / outcome</label><textarea id="applog-outcome" placeholder="Key points, what was said, what was agreed…"></textarea></div>
+      <div class="field-row">
+        <div class="field"><label>Next step</label><input id="applog-nextstep" placeholder="e.g. Send references"></div>
+        <div class="field"><label>Due date</label><input type="date" id="applog-due"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('applog')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAppLog()">Save</button>
+    </div>
+  </div>
+</div>
 
 <!-- IMPORT MODAL -->
 <div class="modal-overlay" id="modal-import">
