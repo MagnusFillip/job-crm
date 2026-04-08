@@ -171,6 +171,10 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 @media (max-width: 768px) { .mobile-toggle { display: flex; } }
 .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
 .empty-icon { font-size: 2rem; margin-bottom: .5rem; }
+
+/* API KEY BANNER */
+.api-banner { background: var(--amber-light); border-bottom: 1px solid #f4c88a; padding: .6rem 2rem; font-size: .82rem; color: var(--amber); display: flex; align-items: center; justify-content: space-between; }
+.api-banner a { color: var(--amber); font-weight: 600; cursor: pointer; text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -180,11 +184,13 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
     <h1>Magnus · CRM</h1>
     <p>Job Search OS</p>
   </div>
-/* API KEY BANNER */
-.api-banner { background: var(--amber-light); border-bottom: 1px solid #f4c88a; padding: .6rem 2rem; font-size: .82rem; color: var(--amber); display: flex; align-items: center; justify-content: space-between; }
-.api-banner a { color: var(--amber); font-weight: 600; cursor: pointer; text-decoration: underline; }
-.api-ready { background: var(--green-light); border-bottom: 1px solid #a3d9b1; color: var(--green); }
-
+  <nav class="nav">
+    <div class="nav-item active" data-page="dashboard">⚡ Dashboard</div>
+    <div class="nav-item" data-page="companies">🏢 Companies</div>
+    <div class="nav-item" data-page="contacts">👤 Contacts</div>
+    <div class="nav-item" data-page="applications">📋 Applications</div>
+    <div class="nav-item" data-page="settings">⚙️ Settings</div>
+  </nav>
   <div class="sidebar-stats">
     <p>Pipeline</p>
     <div class="stat-row"><span>Applications</span><span id="stat-apps">0</span></div>
@@ -1755,9 +1761,21 @@ renderContacts = function() { _origRenderContacts(); makeResizable('tbl-contacts
 const _origRenderApplications = renderApplications;
 renderApplications = function() { _origRenderApplications(); makeResizable('tbl-applications'); };
 
-// INIT
+// INIT — version bump clears stale localStorage
+const CRM_VERSION = 'v4';
+if (localStorage.getItem('magnus_crm_version') !== CRM_VERSION) {
+  localStorage.removeItem(DB_KEY);
+  localStorage.setItem('magnus_crm_version', CRM_VERSION);
+  db = JSON.parse(JSON.stringify(SEED));
+}
 renderDashboard();
 updateStats();
+updateApiStatusDot();
+
+// Load API key into settings field on page load
+const _savedKey = getApiKey();
+const _keyField = document.getElementById('settings-api-key');
+if (_savedKey && _keyField) _keyField.value = _savedKey;
 </script>
 
 <!-- JOB SCAN MODAL -->
