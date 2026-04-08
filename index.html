@@ -85,7 +85,8 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 /* RESIZER */
 .resizer { position: absolute; right: 0; top: 0; height: 100%; width: 6px; cursor: col-resize; user-select: none; z-index: 1; }
 .resizer:hover, .resizer.active { background: var(--border); }
-.table-wrap { overflow-x: auto; resize: horizontal; min-width: 100%; }
+.table-wrap { overflow-x: auto; }
+.card.table-card { overflow: visible; width: fit-content; min-width: 100%; }
 
 /* MATCH BAROMETER */
 .bar-wrap { width: 64px; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; display: inline-block; vertical-align: middle; }
@@ -179,12 +180,11 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
     <h1>Magnus · CRM</h1>
     <p>Job Search OS</p>
   </div>
-  <nav class="nav">
-    <div class="nav-item active" data-page="dashboard">⚡ Dashboard</div>
-    <div class="nav-item" data-page="companies">🏢 Companies</div>
-    <div class="nav-item" data-page="contacts">👤 Contacts</div>
-    <div class="nav-item" data-page="applications">📋 Applications</div>
-  </nav>
+/* API KEY BANNER */
+.api-banner { background: var(--amber-light); border-bottom: 1px solid #f4c88a; padding: .6rem 2rem; font-size: .82rem; color: var(--amber); display: flex; align-items: center; justify-content: space-between; }
+.api-banner a { color: var(--amber); font-weight: 600; cursor: pointer; text-decoration: underline; }
+.api-ready { background: var(--green-light); border-bottom: 1px solid #a3d9b1; color: var(--green); }
+
   <div class="sidebar-stats">
     <p>Pipeline</p>
     <div class="stat-row"><span>Applications</span><span id="stat-apps">0</span></div>
@@ -197,9 +197,15 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
 
 <main class="main">
+  <div id="api-banner" class="api-banner" style="display:none;">
+    ⚠️ AI-funktioner er ikke aktive — <a onclick="document.querySelector('[data-page=settings]').click()">tilføj din Anthropic API-nøgle i Settings</a> for at aktivere job scan, analyse og samtaleimport.
+  </div>
   <div class="topbar">
     <span class="topbar-title" id="page-title">Dashboard</span>
-    <button class="btn btn-primary" onclick="openModal('import')" style="display:flex;align-items:center;gap:.4rem;">📥 Import conversation</button>
+    <div style="display:flex;gap:.5rem;align-items:center;">
+      <span id="api-status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--border);display:inline-block;" title="AI status"></span>
+      <button class="btn btn-primary" onclick="openModal('import')" style="display:flex;align-items:center;gap:.4rem;">📥 Import conversation</button>
+    </div>
   </div>
   <div class="content">
 
@@ -229,13 +235,52 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
     <div class="page" id="page-companies">
       <div class="section-header">
         <h2>Companies</h2>
-        <button class="btn btn-primary" onclick="openModal('company')">+ Add company</button>
+        <div style="display:flex;gap:.5rem;">
+          <button class="btn btn-ghost" onclick="openJobScanModal()">🔍 Scan for jobs</button>
+          <button class="btn btn-primary" onclick="openModal('company')">+ Add company</button>
+        </div>
       </div>
-      <div class="card">
+      <div class="card table-card">
         <div class="table-wrap"><table class="table" id="tbl-companies">
-          <thead><tr><th>Company</th><th>Industry</th><th>Status</th><th>Contacts</th><th>Open roles</th><th>Notes</th><th></th></tr></thead>
+          <thead><tr><th>Company</th><th>Industry</th><th>Status</th><th>Contacts</th><th>Applied</th><th>Open roles</th><th>Notes</th><th></th></tr></thead>
           <tbody id="companies-body"></tbody>
         </table></div>
+      </div>
+
+      <!-- COMPANY DETAIL -->
+      <div class="detail-panel mt3" id="company-detail">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 id="d-co-name"></h2>
+              <div id="d-co-industry" style="font-size:.84rem;color:var(--muted);margin-top:.2rem;"></div>
+            </div>
+            <div style="display:flex;gap:.5rem;">
+              <button class="btn btn-ghost btn-sm" onclick="openJobScanModal(currentCompanyId)">🔍 Scan this company</button>
+              <button class="btn btn-ghost btn-sm" onclick="editCompanyFromDetail()">Edit</button>
+              <button class="btn btn-ghost btn-sm" onclick="closeCompanyDetail()">← Back</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="grid-2">
+              <div>
+                <div class="field"><label>Status</label><span id="d-co-status"></span></div>
+                <div class="field mt2"><label>Notes</label><span id="d-co-notes" style="color:var(--muted);font-size:.84rem;line-height:1.5;"></span></div>
+                <div class="field mt2">
+                  <label>Applications sent</label>
+                  <div id="d-co-apps" style="margin-top:.3rem;display:flex;flex-direction:column;gap:.3rem;"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
+                  <div class="field" style="margin:0;"><label>Open roles spotted</label></div>
+                  <button class="btn btn-ghost btn-sm" onclick="openAddRoleModal()">+ Add role</button>
+                </div>
+                <div id="d-co-open-roles"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -245,7 +290,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
         <h2>Contacts</h2>
         <button class="btn btn-primary" onclick="openModal('contact')">+ Add contact</button>
       </div>
-      <div class="card">
+      <div class="card table-card">
         <div class="table-wrap"><table class="table" id="tbl-contacts">
           <thead><tr><th>Name</th><th>Title</th><th>Company</th><th>Relation</th><th>Status</th><th>Last contact</th><th>Next step</th><th>Due</th><th></th></tr></thead>
           <tbody id="contacts-body"></tbody>
@@ -311,7 +356,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
         <div class="tab" onclick="filterApps('Interview',this)">Interview</div>
         <div class="tab" onclick="filterApps('Rejected',this)">Rejected</div>
       </div>
-      <div class="card">
+      <div class="card table-card">
         <div class="table-wrap"><table class="table" id="tbl-applications">
           <thead><tr><th>Role</th><th>Company</th><th>Status</th><th>Match</th><th>Deadline</th><th>Follow-up</th><th>Contacts</th><th>Notes</th><th></th></tr></thead>
           <tbody id="applications-body"></tbody>
@@ -359,6 +404,51 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
                   <div id="d-app-suggestion-text" style="font-size:.84rem;color:var(--blue);"></div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="section-header"><h2>Settings</h2></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><h2>🔑 Anthropic API Key</h2></div>
+          <div class="card-body">
+            <p style="font-size:.84rem;color:var(--muted);margin-bottom:1rem;line-height:1.6;">
+              Din nøgle gemmes <strong>kun i din browser</strong> — aldrig på GitHub. Den aktiverer job scan, posting-analyse og samtaleimport direkte i CRM'en.<br><br>
+              Hent gratis nøgle: <a href="https://console.anthropic.com" target="_blank" style="color:var(--blue);">console.anthropic.com</a> → API Keys → Create Key.
+            </p>
+            <div class="field">
+              <label>API Key</label>
+              <div style="display:flex;gap:.5rem;">
+                <input type="password" id="settings-api-key" placeholder="sk-ant-api03-…" style="flex:1;">
+                <button class="btn btn-ghost btn-sm" onclick="toggleKeyVisibility()" type="button">👁</button>
+              </div>
+            </div>
+            <div id="api-key-status" style="font-size:.82rem;margin-top:.6rem;min-height:1.2em;"></div>
+            <div style="display:flex;gap:.5rem;margin-top:1rem;flex-wrap:wrap;">
+              <button class="btn btn-primary" onclick="saveApiKey()">Save key</button>
+              <button class="btn btn-ghost" onclick="testApiKey()">Test connection</button>
+              <button class="btn btn-ghost" onclick="clearApiKey()">Remove key</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2>📊 Data</h2></div>
+          <div class="card-body">
+            <p style="font-size:.84rem;color:var(--muted);margin-bottom:1rem;line-height:1.6;">
+              Al CRM-data gemmes i din browsers localStorage. Eksporter som backup eller for at synkronisere til en anden enhed.
+            </p>
+            <div style="display:flex;flex-direction:column;gap:.5rem;">
+              <button class="btn btn-ghost" onclick="exportData()">⬇️ Export data (JSON)</button>
+              <label class="btn btn-ghost" style="cursor:pointer;text-align:center;">
+                ⬆️ Import data (JSON)
+                <input type="file" accept=".json" onchange="importData(event)" style="display:none;">
+              </label>
+              <button class="btn btn-danger" onclick="confirmReset()" style="margin-top:.5rem;">🗑 Reset to seed data</button>
             </div>
           </div>
         </div>
@@ -634,8 +724,16 @@ function renderDashboard() {
 
   const items = [];
   db.applications.forEach(a => {
-    if (a.deadline) { const d=new Date(a.deadline); if(d>=today&&d<=in48) items.push({label:`Deadline: ${a.role} @ ${a.company}`,sub:'',date:a.deadline,urgency:d<=today?'red':'amber'}); }
-    if (a.followup) { const d=new Date(a.followup); if(d>=today&&d<=in48) items.push({label:`Follow up on ${a.role} @ ${a.company}`,sub:a.outcome,date:a.followup,urgency:'amber'}); }
+    // Deadlines only relevant for Wishlist/Draft (not yet applied)
+    if (a.deadline && (a.status==='Wishlist'||a.status==='Draft')) {
+      const d=new Date(a.deadline);
+      if(d>=today&&d<=in48) items.push({label:`Deadline: ${a.role} @ ${a.company}`,sub:'',date:a.deadline,urgency:d<=today?'red':'amber'});
+    }
+    // Follow-ups for all active applications
+    if (a.followup && a.status!=='Rejected') {
+      const d=new Date(a.followup);
+      if(d>=today&&d<=in48) items.push({label:`Follow up: ${a.role} @ ${a.company}`,sub:a.outcome,date:a.followup,urgency:'amber'});
+    }
   });
   db.contacts.forEach(c => {
     if (c.due) { const d=new Date(c.due); if(d>=today&&d<=in48) items.push({label:`${c.nextStep||'Action needed'} — ${c.name}`,sub:c.company,date:c.due,urgency:d<=today?'red':'amber'}); }
@@ -671,18 +769,247 @@ function renderDashboard() {
 }
 
 // COMPANIES
+let currentCompanyId = null;
+
 function renderCompanies() {
   const sc={Active:'green',Prospect:'blue','On hold':'amber',Closed:'grey'};
-  document.getElementById('companies-body').innerHTML = db.companies.map(c=>`
-    <tr>
-      <td><strong>${c.name}</strong></td>
+  document.getElementById('companies-body').innerHTML = db.companies.map(c=>{
+    const applied = db.applications.filter(a=>a.companyId===c.id && a.status!=='Rejected').length;
+    const openRoles = (c.openRoles||[]);
+    const openHtml = openRoles.length
+      ? openRoles.map(r=>`<span class="badge badge-green" style="margin-right:.2rem;">${r.title}</span>`).join('')
+      : '<span style="color:var(--muted);font-size:.78rem;">—</span>';
+    return `<tr>
+      <td><a onclick="openCompanyDetail('${c.id}')">${c.name}</a></td>
       <td>${c.industry}</td>
       <td><span class="badge badge-${sc[c.status]||'grey'}">${c.status}</span></td>
       <td>${db.contacts.filter(ct=>ct.companyId===c.id).length}</td>
-      <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.roles||'—'}</td>
-      <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);font-size:.8rem;">${c.notes||''}</td>
+      <td style="font-size:.82rem;">${applied ? `<span style="color:var(--blue);font-weight:500;">${applied} sent</span>` : '—'}</td>
+      <td>${openHtml}</td>
+      <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);font-size:.8rem;">${c.notes||''}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="editCompany('${c.id}')">Edit</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+}
+
+function openCompanyDetail(id) {
+  currentCompanyId = id;
+  const c = db.companies.find(x=>x.id===id);
+  const sc={Active:'green',Prospect:'blue','On hold':'amber',Closed:'grey'};
+  document.getElementById('d-co-name').textContent = c.name;
+  document.getElementById('d-co-industry').textContent = c.industry;
+  document.getElementById('d-co-status').innerHTML = `<span class="badge badge-${sc[c.status]||'grey'}">${c.status}</span>`;
+  document.getElementById('d-co-notes').textContent = c.notes||'—';
+
+  // Applied roles
+  const apps = db.applications.filter(a=>a.companyId===id);
+  const appSc={Wishlist:'purple',Draft:'grey',Sent:'blue',Interview:'green',Offer:'green',Rejected:'red'};
+  document.getElementById('d-co-apps').innerHTML = apps.length
+    ? apps.map(a=>`<div style="display:flex;align-items:center;gap:.5rem;">
+        <span class="badge badge-${appSc[a.status]||'grey'}">${a.status}</span>
+        <span style="font-size:.84rem;">${a.role}</span>
+      </div>`).join('')
+    : '<span style="font-size:.8rem;color:var(--muted);">No applications yet</span>';
+
+  renderOpenRoles(c);
+  document.getElementById('company-detail').classList.add('open');
+}
+
+function renderOpenRoles(c) {
+  const roles = c.openRoles || [];
+  document.getElementById('d-co-open-roles').innerHTML = roles.length
+    ? roles.map((r,i)=>`
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--faint);">
+        <div>
+          <div style="font-weight:500;font-size:.88rem;">${r.title}</div>
+          ${r.notes?`<div style="font-size:.78rem;color:var(--muted);">${r.notes}</div>`:''}
+          ${r.url?`<a href="${r.url}" target="_blank" style="font-size:.75rem;color:var(--blue);">View posting ↗</a>`:''}
+        </div>
+        <div style="display:flex;gap:.3rem;flex-shrink:0;margin-left:.5rem;">
+          <button class="btn btn-ghost btn-sm" onclick="addToWishlist('${c.id}',${i})">+ Wishlist</button>
+          <button onclick="removeOpenRole('${c.id}',${i})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:.8rem;">✕</button>
+        </div>
+      </div>`).join('')
+    : '<p style="color:var(--muted);font-size:.82rem;">No open roles spotted yet. Click "Scan this company" or "+ Add role" to track one.</p>';
+}
+
+function closeCompanyDetail() {
+  document.getElementById('company-detail').classList.remove('open');
+  currentCompanyId = null;
+}
+
+function editCompanyFromDetail() { if (currentCompanyId) editCompany(currentCompanyId); }
+
+function openAddRoleModal() {
+  document.getElementById('addrole-title').value='';
+  document.getElementById('addrole-source').value='';
+  document.getElementById('addrole-url').value='';
+  document.getElementById('addrole-notes').value='';
+  openModal('addrole');
+}
+
+function saveOpenRole() {
+  if (!currentCompanyId) return;
+  const c = db.companies.find(x=>x.id===currentCompanyId);
+  c.openRoles = c.openRoles||[];
+  c.openRoles.push({
+    title: document.getElementById('addrole-title').value.trim(),
+    source: document.getElementById('addrole-source').value.trim(),
+    url: document.getElementById('addrole-url').value.trim(),
+    notes: document.getElementById('addrole-notes').value.trim(),
+    addedDate: new Date().toISOString().split('T')[0]
+  });
+  saveDB(); closeModal('addrole'); renderOpenRoles(c); renderCompanies();
+}
+
+function removeOpenRole(companyId, index) {
+  const c = db.companies.find(x=>x.id===companyId);
+  c.openRoles = (c.openRoles||[]).filter((_,i)=>i!==index);
+  saveDB(); renderOpenRoles(c); renderCompanies();
+}
+
+function addToWishlist(companyId, roleIndex) {
+  const c = db.companies.find(x=>x.id===companyId);
+  const r = (c.openRoles||[])[roleIndex];
+  if (!r) return;
+  // Add as Wishlist application
+  const app = {
+    id: newId(), role: r.title, company: c.name, companyId: c.id,
+    status: 'Wishlist', deadline:'', followup:'', contacts:'',
+    outcome:'', notes: r.notes||'', posting:'', appLog:[]
+  };
+  db.applications.push(app);
+  // Remove from open roles
+  c.openRoles.splice(roleIndex,1);
+  saveDB(); renderOpenRoles(c); renderCompanies();
+  alert(`"${r.title}" added to Wishlist in Applications.`);
+}
+
+// JOB SCAN
+function openJobScanModal(companyId) {
+  // Pre-fill companies field
+  const targetCompanies = companyId
+    ? (db.companies.find(x=>x.id===companyId)||{}).name||''
+    : db.companies.filter(c=>c.status==='Active'||c.status==='Prospect').map(c=>c.name).join(', ');
+  document.getElementById('scan-companies').value = targetCompanies;
+  document.getElementById('scan-roles').value = 'PMO Manager, Head of PMO, People Leadership, L&D Manager, Organisational Development, Chief of Staff, Portfolio Manager';
+  document.getElementById('scan-prompt-box').style.display='none';
+  document.getElementById('scan-result-box').style.display='none';
+  openModal('jobscan');
+}
+
+async function runJobScan() {
+  const key = getApiKey();
+  const btn = document.getElementById('scan-run-btn');
+  if (!key) {
+    // Fall back to prompt-based approach
+    generateScanPrompt();
+    return;
+  }
+  btn.textContent = 'Scanning…'; btn.disabled = true;
+  const companies = document.getElementById('scan-companies').value.trim();
+  const roles = document.getElementById('scan-roles').value.trim();
+  const location = document.getElementById('scan-location').value.trim();
+  const keywords = document.getElementById('scan-keywords').value.trim();
+
+  const systemPrompt = `You are a job search assistant for a Danish job seeker. Search for and return current open positions.
+Respond ONLY with a valid JSON array — no markdown, no explanation:
+[{"company":"Company name","role":"Exact job title","url":"URL or empty string","deadline":"YYYY-MM-DD or empty","notes":"1-2 sentences on why relevant"}]
+Return max 15 results. Only real, current openings.`;
+
+  const userMsg = `Find current open positions in Denmark matching this profile:
+Candidate: Magnus Fillip Pedersen — experienced leader, PMO/L&D/OD/people leadership background, Novo Nordisk + Danish Armed Forces.
+Target companies: ${companies}
+Relevant role types: ${roles}
+Location: ${location}
+Keywords: ${keywords}
+Return only roles that match the candidate's seniority (Manager/Head of/Director level).`;
+
+  try {
+    const raw = await claudeApi([{role:'user',content:userMsg}], systemPrompt, 2000);
+    const jobs = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    document.getElementById('scan-result-input').value = JSON.stringify(jobs, null, 2);
+    document.getElementById('scan-result-box').style.display='block';
+    document.getElementById('scan-prompt-box').style.display='none';
+    btn.textContent = `✓ Fandt ${jobs.length} stillinger — godkend nedenfor`;
+  } catch(e) {
+    alert('Scan fejlede: ' + e.message);
+    btn.textContent = '🔍 Scan nu';
+  }
+  btn.disabled = false;
+}
+
+function generateScanPrompt() {
+  const companies = document.getElementById('scan-companies').value.trim();
+  const roles = document.getElementById('scan-roles').value.trim();
+  const location = document.getElementById('scan-location').value.trim();
+  const keywords = document.getElementById('scan-keywords').value.trim();
+
+  const prompt = `Du er en jobsøgningsassistent. Søg efter ledige stillinger og returner KUN valid JSON — ingen forklaring, ingen markdown.
+
+Søg efter aktuelle ledige stillinger på disse virksomheders karrieresider og jobportaler (LinkedIn, Jobindex, Graduateland):
+
+Virksomheder: ${companies}
+
+Relevante stillingstitler/roller: ${roles}
+
+Lokation: ${location}
+
+Keywords: ${keywords}
+
+Kandidatprofil: Magnus Fillip Pedersen — erfaren leder med baggrund i Novo Nordisk (PMO, L&D, capability building) og Forsvaret (leder, officer). Søger roller inden for people leadership, PMO/portfolio governance, L&D, OD. Niveau: Manager/Head of/Director.
+
+Returner JSON-array i dette format:
+[
+  {
+    "company": "Virksomhedsnavn",
+    "role": "Stillingstitlen",
+    "url": "Link til opslaget hvis tilgængeligt",
+    "deadline": "YYYY-MM-DD eller tom streng",
+    "notes": "Kort beskrivelse af rollen og hvorfor den er relevant for kandidaten"
+  }
+]
+
+Returner max 15 resultater. Kun reelle, aktuelle opslag — ingen forladte eller udgåede.`;
+
+  document.getElementById('scan-prompt-text').value = prompt;
+  document.getElementById('scan-prompt-box').style.display='block';
+  document.getElementById('scan-result-box').style.display='block';
+}
+
+function copyPrompt() {
+  const el = document.getElementById('scan-prompt-text');
+  el.select(); document.execCommand('copy');
+  alert('Prompt kopieret — paste det i Claude-chatten');
+}
+
+function applyScanResult() {
+  try {
+    const raw = document.getElementById('scan-result-input').value.trim();
+    const jobs = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    if (!Array.isArray(jobs)) throw new Error('Expected array');
+    let added = 0;
+    jobs.forEach(j => {
+      // Find matching company
+      let company = db.companies.find(c=>c.name.toLowerCase()===j.company.toLowerCase());
+      if (!company) {
+        company = {id:newId(),name:j.company,industry:'—',status:'Prospect',roles:'',notes:'Added via job scan.',openRoles:[]};
+        db.companies.push(company);
+      }
+      company.openRoles = company.openRoles||[];
+      // Avoid duplicates
+      if (!company.openRoles.find(r=>r.title===j.role)) {
+        company.openRoles.push({title:j.role,url:j.url||'',notes:j.notes||'',source:'Job scan',addedDate:new Date().toISOString().split('T')[0]});
+        added++;
+      }
+    });
+    saveDB();
+    closeModal('jobscan');
+    renderCompanies();
+    alert(`${added} roller tilføjet til relevante virksomheder under Open Roles.`);
+  } catch(e) {
+    alert('Ugyldigt JSON — prøv igen\n\n'+e.message);
+  }
 }
 
 // CONTACTS
@@ -1092,49 +1419,54 @@ Target: Roles at the intersection of people leadership, L&D, OD, and PMO/portfol
 async function analysePosting() {
   const posting = document.getElementById('a-posting').value.trim();
   if (!posting) return alert('Paste the job posting first');
+  if (!getApiKey()) return alert('Tilføj din API-nøgle under Settings først');
   const btn = document.getElementById('a-analyse-btn');
   const status = document.getElementById('a-analyse-status');
   btn.disabled = true; status.textContent = 'Analysing…';
-
-  const systemPrompt = `You are a career coach and job application strategist. Analyse a job posting against a candidate profile.
-Respond ONLY with valid JSON — no markdown, no explanation:
-{
-  "requirements": ["req 1", "req 2", "req 3", "req 4", "req 5"],
-  "matchScore": 85,
-  "strengths": ["strength match 1", "strength match 2", "strength match 3"],
-  "gaps": ["gap 1", "gap 2"],
-  "angle": "The one strategic angle this candidate should lead with in their application — 2-3 sentences."
-}
-matchScore is 0-100. requirements are the 5 most important requirements from the posting. strengths are where the candidate clearly matches. gaps are honest gaps to be aware of.`;
-
+  const systemPrompt = `You are a career coach. Analyse a job posting against a candidate profile. Respond ONLY with valid JSON, no markdown:
+{"requirements":["req1","req2","req3","req4","req5"],"matchScore":85,"strengths":["s1","s2","s3"],"gaps":["g1","g2"],"angle":"Strategic angle 2-3 sentences."}`;
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: `Candidate profile:\n${MAGNUS_PROFILE}\n\nJob posting:\n${posting}` }]
-      })
-    });
-    const data = await res.json();
-    const raw = data.content?.[0]?.text || '';
+    const raw = await claudeApi([{role:'user',content:`Candidate:\n${MAGNUS_PROFILE}\n\nJob posting:\n${posting}`}], systemPrompt);
     const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
-
-    document.getElementById('a-requirements').value = JSON.stringify(parsed.requirements);
-    document.getElementById('a-match-score').value = parsed.matchScore;
-    document.getElementById('a-match-strengths').value = JSON.stringify(parsed.strengths);
-    document.getElementById('a-match-gaps').value = JSON.stringify(parsed.gaps);
-    document.getElementById('a-match-angle').value = parsed.angle;
-
-    showAnalysisPreview(parsed.matchScore, JSON.stringify(parsed.strengths), JSON.stringify(parsed.gaps), parsed.angle, JSON.stringify(parsed.requirements));
+    storeAndShowAnalysis(parsed);
     status.textContent = 'Done ✓';
   } catch(e) {
-    status.textContent = 'Failed — try again';
-    alert('Analysis failed: ' + e.message);
+    status.textContent = 'Fejl';
+    alert('Analyse fejlede: '+e.message);
   }
   btn.disabled = false;
+}
+
+function showManualAnalysisEntry() {
+  document.getElementById('a-analysis-preview').style.display = 'block';
+  document.getElementById('a-analysis-content').innerHTML = `
+    <div style="background:var(--amber-light);border-radius:6px;padding:.8rem;margin-bottom:.8rem;">
+      <div style="font-size:.8rem;color:var(--amber);font-weight:500;margin-bottom:.3rem;">⚠️ AI analyse virker ikke fra GitHub Pages</div>
+      <div style="font-size:.78rem;color:var(--amber);">Kopier opslaget og paste det i din Claude-chat og bed om: <em>"Analyser dette jobopslag mod min profil og giv mig matchScore, strengths, gaps og angle som JSON"</em> — kopier derefter resultatet herunder.</div>
+    </div>
+    <div class="field"><label>Paste JSON-resultat fra Claude her</label>
+      <textarea id="manual-json-input" style="min-height:80px;font-size:.78rem;font-family:monospace;" placeholder='{"matchScore":85,"strengths":["..."],"gaps":["..."],"angle":"...","requirements":["..."]}'></textarea>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="applyManualJson()" style="margin-top:.5rem;">Apply</button>`;
+}
+
+function applyManualJson() {
+  try {
+    const raw = document.getElementById('manual-json-input').value.trim();
+    const parsed = JSON.parse(raw);
+    storeAndShowAnalysis(parsed);
+  } catch(e) {
+    alert('Ugyldigt JSON — prøv igen');
+  }
+}
+
+function storeAndShowAnalysis(parsed) {
+  document.getElementById('a-requirements').value = JSON.stringify(parsed.requirements||[]);
+  document.getElementById('a-match-score').value = parsed.matchScore;
+  document.getElementById('a-match-strengths').value = JSON.stringify(parsed.strengths||[]);
+  document.getElementById('a-match-gaps').value = JSON.stringify(parsed.gaps||[]);
+  document.getElementById('a-match-angle').value = parsed.angle||'';
+  showAnalysisPreview(parsed.matchScore, JSON.stringify(parsed.strengths||[]), JSON.stringify(parsed.gaps||[]), parsed.angle||'', JSON.stringify(parsed.requirements||[]));
 }
 
 function showAnalysisPreview(score, strengthsJson, gapsJson, angle, reqJson) {
@@ -1155,6 +1487,115 @@ function showAnalysisPreview(score, strengthsJson, gapsJson, angle, reqJson) {
     ${angle?`<div style="border-top:1px solid var(--border);padding-top:.7rem;margin-top:.3rem;"><div style="font-size:.72rem;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">💡 Your angle</div><div style="font-size:.84rem;line-height:1.5;">${angle}</div></div>`:''}
   `;
   document.getElementById('a-analysis-preview').style.display = 'block';
+}
+
+// ─── API KEY MANAGEMENT ──────────────────────────────────────
+const API_KEY_STORAGE = 'magnus_crm_apikey';
+
+function getApiKey() { return localStorage.getItem(API_KEY_STORAGE)||''; }
+
+function saveApiKey() {
+  const key = document.getElementById('settings-api-key').value.trim();
+  if (!key) return setKeyStatus('Ingen nøgle indtastet', 'var(--red)');
+  if (!key.startsWith('sk-ant')) return setKeyStatus('Nøglen ser forkert ud — skal starte med sk-ant…', 'var(--amber)');
+  localStorage.setItem(API_KEY_STORAGE, key);
+  setKeyStatus('✓ Nøgle gemt', 'var(--green)');
+  updateApiStatusDot();
+}
+
+function clearApiKey() {
+  localStorage.removeItem(API_KEY_STORAGE);
+  document.getElementById('settings-api-key').value = '';
+  setKeyStatus('Nøgle fjernet', 'var(--muted)');
+  updateApiStatusDot();
+}
+
+function toggleKeyVisibility() {
+  const el = document.getElementById('settings-api-key');
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function setKeyStatus(msg, color) {
+  const el = document.getElementById('api-key-status');
+  if (el) { el.textContent = msg; el.style.color = color; }
+}
+
+async function testApiKey() {
+  const key = getApiKey() || document.getElementById('settings-api-key').value.trim();
+  if (!key) return setKeyStatus('Ingen nøgle — gem den først', 'var(--red)');
+  setKeyStatus('Tester…', 'var(--muted)');
+  try {
+    const res = await claudeApi([{role:'user',content:'Reply with just the word: OK'}], 'Reply with just "OK".', 50, key);
+    if (res) setKeyStatus('✓ Forbindelse OK — AI-funktioner er aktive', 'var(--green)');
+  } catch(e) {
+    setKeyStatus('Fejl: ' + e.message, 'var(--red)');
+  }
+}
+
+function updateApiStatusDot() {
+  const key = getApiKey();
+  const dot = document.getElementById('api-status-dot');
+  const banner = document.getElementById('api-banner');
+  if (key) {
+    if (dot) { dot.style.background='var(--green)'; dot.title='AI aktiv'; }
+    if (banner) banner.style.display='none';
+  } else {
+    if (dot) { dot.style.background='#f4a261'; dot.title='API-nøgle mangler'; }
+    if (banner) banner.style.display='flex';
+  }
+}
+
+// Central API call function used by all AI features
+async function claudeApi(messages, system, maxTokens=1000, keyOverride) {
+  const key = keyOverride || getApiKey();
+  if (!key) throw new Error('Ingen API-nøgle — gå til Settings og tilføj din Anthropic-nøgle');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:maxTokens, system, messages })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.error?.message||`HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return data.content?.[0]?.text || '';
+}
+
+// ─── SETTINGS DATA FUNCTIONS ─────────────────────────────────
+function exportData() {
+  const blob = new Blob([JSON.stringify(db, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download='magnus-crm-backup.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  const file = event.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!imported.companies||!imported.contacts||!imported.applications) throw new Error('Ugyldig fil');
+      if (!confirm(`Importer data? Dette erstatter din nuværende CRM-data.`)) return;
+      localStorage.setItem(DB_KEY, JSON.stringify(imported));
+      location.reload();
+    } catch(err) { alert('Ugyldig fil: '+err.message); }
+  };
+  reader.readAsText(file);
+}
+
+function confirmReset() {
+  if (confirm('Reset til seed-data? Al din nuværende data slettes.')) {
+    localStorage.removeItem(DB_KEY);
+    location.reload();
+  }
 }
 
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
@@ -1184,19 +1625,9 @@ Respond ONLY with valid JSON in this exact format — no markdown, no explanatio
   }
 }`;
 
+  if (!getApiKey()) { alert('Tilf\u00f8j din API-n\u00f8gle under Settings f\u00f8rst'); btn.textContent='Parse with AI'; btn.disabled=false; return; }
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: `Extract CRM data from this conversation:\n\n${text}` }]
-      })
-    });
-    const data = await res.json();
-    const raw = data.content?.[0]?.text || '';
+    const raw = await claudeApi([{role:'user',content:`Extract CRM data from this conversation:\n\n${text}`}], systemPrompt);
     const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
     showImportPreview(parsed);
   } catch(e) {
@@ -1328,6 +1759,74 @@ renderApplications = function() { _origRenderApplications(); makeResizable('tbl-
 renderDashboard();
 updateStats();
 </script>
+
+<!-- JOB SCAN MODAL -->
+<div class="modal-overlay" id="modal-jobscan">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🔍 Scan for relevant jobs</h3>
+      <button class="modal-close" onclick="closeModal('jobscan')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.84rem;color:var(--muted);margin-bottom:.5rem;">Tilpas søgekriterierne og klik "Generér søgeprompt" — paste derefter prompten i Claude-chatten og returner JSON-resultatet herunder.</p>
+      <div class="field">
+        <label>Target companies (comma-separated)</label>
+        <input id="scan-companies" placeholder="LEO Pharma, Rockwool, Bang & Olufsen, GN Audio…">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Role types</label>
+          <input id="scan-roles" placeholder="PMO, People leadership, L&D, OD, CoS">
+        </div>
+        <div class="field">
+          <label>Location</label>
+          <input id="scan-location" value="Danmark, hybrid">
+        </div>
+      </div>
+      <div class="field">
+        <label>Keywords</label>
+        <input id="scan-keywords" value="leder, manager, director, projektleder, PMO, HR, organisationsudvikling">
+      </div>
+      <button class="btn btn-primary" onclick="runJobScan()" style="width:100%;margin-top:.3rem;" id="scan-run-btn">🔍 Scan nu</button>
+      <div id="scan-prompt-box" style="display:none;margin-top:1rem;">
+        <div class="field">
+          <label>Kopiér denne prompt til Claude-chatten →</label>
+          <textarea id="scan-prompt-text" style="min-height:100px;font-size:.8rem;" readonly onclick="this.select()"></textarea>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="copyPrompt()">📋 Kopiér</button>
+      </div>
+      <div id="scan-result-box" style="display:none;margin-top:1rem;">
+        <div class="field">
+          <label>Paste JSON-resultat fra Claude her</label>
+          <textarea id="scan-result-input" style="min-height:80px;font-size:.78rem;font-family:monospace;" placeholder='[{"company":"LEO Pharma","role":"Head of People Operations","url":"...","notes":"..."}]'></textarea>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="applyScanResult()">Tilføj til CRM</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD OPEN ROLE MODAL -->
+<div class="modal-overlay" id="modal-addrole">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add open role</h3>
+      <button class="modal-close" onclick="closeModal('addrole')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label>Role title</label><input id="addrole-title" placeholder="e.g. Head of PMO"></div>
+      <div class="field-row">
+        <div class="field"><label>Source</label><input id="addrole-source" placeholder="e.g. LinkedIn, company website"></div>
+        <div class="field"><label>URL</label><input id="addrole-url" placeholder="https://..."></div>
+      </div>
+      <div class="field"><label>Notes</label><input id="addrole-notes" placeholder="Deadline, key requirements…"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('addrole')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveOpenRole()">Add role</button>
+    </div>
+  </div>
+</div>
 
 <!-- APP LOG MODAL -->
 <div class="modal-overlay" id="modal-applog">
