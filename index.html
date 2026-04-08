@@ -85,8 +85,8 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 /* RESIZER */
 .resizer { position: absolute; right: 0; top: 0; height: 100%; width: 6px; cursor: col-resize; user-select: none; z-index: 1; }
 .resizer:hover, .resizer.active { background: var(--border); }
-.table-wrap { overflow-x: auto; }
-.card.table-card { overflow: visible; width: fit-content; min-width: 100%; }
+.table-wrap { overflow-x: visible; min-width: max-content; width: 100%; }
+.card.table-card { overflow-x: auto; width: 100%; }
 
 /* MATCH BAROMETER */
 .bar-wrap { width: 64px; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; display: inline-block; vertical-align: middle; }
@@ -1761,18 +1761,15 @@ renderContacts = function() { _origRenderContacts(); makeResizable('tbl-contacts
 const _origRenderApplications = renderApplications;
 renderApplications = function() { _origRenderApplications(); makeResizable('tbl-applications'); };
 
-// INIT — version bump clears stale localStorage
-const CRM_VERSION = 'v4';
-if (localStorage.getItem('magnus_crm_version') !== CRM_VERSION) {
-  localStorage.removeItem(DB_KEY);
-  localStorage.setItem('magnus_crm_version', CRM_VERSION);
+// INIT — only load seed if no existing data
+if (!loadDB()) {
   db = JSON.parse(JSON.stringify(SEED));
+  saveDB();
 }
 renderDashboard();
 updateStats();
 updateApiStatusDot();
 
-// Load API key into settings field on page load
 const _savedKey = getApiKey();
 const _keyField = document.getElementById('settings-api-key');
 if (_savedKey && _keyField) _keyField.value = _savedKey;
