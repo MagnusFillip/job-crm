@@ -85,7 +85,19 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 /* RESIZER */
 .resizer { position: absolute; right: 0; top: 0; height: 100%; width: 6px; cursor: col-resize; user-select: none; z-index: 1; }
 .resizer:hover, .resizer.active { background: var(--border); }
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow-x: auto; resize: horizontal; min-width: 100%; }
+
+/* MATCH BAROMETER */
+.bar-wrap { width: 64px; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; display: inline-block; vertical-align: middle; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+
+/* STATUS DOT for contacts */
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .4rem; vertical-align: middle; }
+.status-active { background: var(--green); }
+.status-passive { background: var(--muted); }
+.status-pending { background: #f4a261; }
+.status-followup { background: var(--amber); }
+.status-closed { background: var(--red); }
 
 /* QUEUE */
 .queue-item { display: flex; align-items: flex-start; gap: 1rem; padding: .9rem 1.2rem; border-bottom: 1px solid var(--faint); }
@@ -235,7 +247,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
       </div>
       <div class="card">
         <div class="table-wrap"><table class="table" id="tbl-contacts">
-          <thead><tr><th>Name</th><th>Title</th><th>Company</th><th>Relation</th><th>Last contact</th><th>Next step</th><th>Due</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th>Title</th><th>Company</th><th>Relation</th><th>Status</th><th>Last contact</th><th>Next step</th><th>Due</th><th></th></tr></thead>
           <tbody id="contacts-body"></tbody>
         </table></div>
       </div>
@@ -255,6 +267,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
                 <div class="field"><label>Title</label><span id="d-title"></span></div>
                 <div class="field mt2"><label>Company</label><span id="d-company"></span></div>
                 <div class="field mt2"><label>Relation</label><span id="d-relation"></span></div>
+                <div class="field mt2"><label>Network status</label><span id="d-networkstatus"></span></div>
                 <div class="field mt2"><label>Notes</label><span id="d-notes" style="color:var(--muted);font-size:.84rem;line-height:1.5;"></span></div>
                 <div class="field mt2"><label>Next step</label><span id="d-nextstep" style="color:var(--amber);font-weight:500;"></span></div>
                 <div class="field mt2"><label>Due</label><span id="d-due" style="color:var(--red);font-weight:500;"></span></div>
@@ -388,6 +401,11 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
         <div class="field"><label>Relation</label><select id="ct-relation"><option>Peer</option><option>Leader above me</option><option>Recruiter</option><option>Network</option><option>Decision maker</option></select></div>
       </div>
       <div class="field"><label>Last contacted</label><input type="date" id="ct-lastcontact"></div>
+      <div class="field"><label>Network status</label>
+        <select id="ct-networkstatus">
+          <option>Active ally</option><option>Passive</option><option>Pending reply</option><option>Follow up</option><option>Closed</option>
+        </select>
+      </div>
       <div class="field"><label>Outcome of last interaction</label><textarea id="ct-outcome"></textarea></div>
       <div class="field-row">
         <div class="field"><label>Next step</label><input id="ct-nextstep"></div>
@@ -491,46 +509,76 @@ const SEED = {
     { id:'c23', name:'PET', industry:'Public/Security', status:'Active', roles:'Sektionsleder OSINT', notes:'Application sent. Military intelligence background relevant.' },
     { id:'c24', name:'NNE', industry:'Pharma Engineering', status:'Active', roles:'Manager Plant Design Department', notes:'CV sent.' },
     { id:'c25', name:'Compass HR Group', industry:'Recruitment/HR', status:'Active', roles:'Head of Project Support', notes:'LinkedIn application sent.' },
+    { id:'c26', name:'Nykredit', industry:'Finance', status:'Active', roles:'Erfaren leder, People Support & Systems', notes:'Applied 8 April 2026.' },
+    { id:'c27', name:'Demant', industry:'MedTech/Audio', status:'Prospect', roles:'—', notes:'Kristian Vilstrup contact — pending coffee.' },
+    { id:'c28', name:'Ørsted', industry:'Energy', status:'Prospect', roles:'—', notes:'Peter Krastins contact. Peter discouraged Senior Portfolio Manager. Keep on radar.' },
+    { id:'c29', name:'SOUNDBOKS', industry:'Audio/Tech', status:'Prospect', roles:'—', notes:'Hans August Carlander (CPO) — hiring freeze. Keep on radar.' },
+    { id:'c30', name:'TORM', industry:'Shipping', status:'Prospect', roles:'People BP to CFO', notes:'Line Randløv asked for recommendation to Lene at TORM.' },
+    { id:'c31', name:'Nets', industry:'Fintech', status:'Prospect', roles:'—', notes:'Jacob Jørgensen contact — awaiting response.' },
+    { id:'c32', name:'Forsvaret', industry:'Defence/Public', status:'Prospect', roles:'—', notes:'Simon Bro veteran network contact.' },
+    { id:'c33', name:'Clipper Bulk', industry:'Shipping', status:'Prospect', roles:'—', notes:'Line Randløv works here.' },
   ],
   contacts: [
-    { id:'ct1', name:'Anne', title:'VP People (family friend)', company:'LEO Pharma', companyId:'c1', relation:'Network', lastContact:'2026-04-02', outcome:'Facilitated intro to CHRO Helle Hedegaard Juhl. Application submitted.', nextStep:'Send thank you + check on timeline', due:'2026-04-10', notes:'Family friend. Key connector at LEO Pharma.', log:[{ date:'2026-04-02', type:'Phone call', outcome:'Anne confirmed Helle interest. Helped shape application angle.', nextStep:'Send thank you email', due:'2026-04-10' }] },
-    { id:'ct2', name:'Simone', title:'Chief of Staff (outgoing)', company:'LEO Pharma', companyId:'c1', relation:'Network', lastContact:'2026-04-03', outcome:'Brief exchange. Context on role expectations and team dynamics.', nextStep:'Follow up if invited to interview', due:'2026-04-20', notes:'Outgoing CoS at LEO Pharma — good insight into the role.', log:[] },
-    { id:'ct3', name:'Charlotte', title:'VP Project Execution', company:'Bang & Olufsen', companyId:'c6', relation:'Network', lastContact:'2026-03-20', outcome:'Applied for Senior PM — rejected. Sent coffee invitation. Awaiting response.', nextStep:'Follow up on coffee invitation', due:'2026-04-09', notes:'Pharma background. Warm contact. B&O dream employer.', log:[{ date:'2026-03-20', type:'LinkedIn message', outcome:'Coffee invitation after Senior PM rejection. Kept tone forward-looking.', nextStep:'Follow up if no response by Apr 9', due:'2026-04-09' }] },
-    { id:'ct4', name:'Dorthe Gottwald Finne', title:'VP Operations', company:'Weibel', companyId:'c4', relation:'Decision maker', lastContact:'2026-03-28', outcome:'Confirmed application received. Brief exchange on military background relevance.', nextStep:'Follow up on application status', due:'2026-04-12', notes:'Direct hiring manager at Weibel.', log:[] },
-    { id:'ct5', name:'Peter', title:'Former Officersskole teacher', company:'Danske Bank', companyId:'c5', relation:'Network', lastContact:'2026-03-15', outcome:'Warm reconnection. Offered to put in a good word internally.', nextStep:'Send update on application status', due:'2026-04-15', notes:'Former teacher at Officersskolen. Now at Danske Bank.', log:[] },
-    { id:'ct6', name:'Christian Skovgaard Thorsen', title:'Contact', company:'Danske Bank', companyId:'c5', relation:'Network', lastContact:'2026-03-10', outcome:'Good conversation. Digital Portfolio Steering too technical. Keeping warm for P&BC Office.', nextStep:'Reach out when P&BC Office progresses', due:'2026-04-20', notes:'Relevant for broader Danske Bank opportunities.', log:[] },
-    { id:'ct7', name:'Grant Stevens-Bunner', title:'Global Head of Talent Acquisition', company:'Bang & Olufsen', companyId:'c6', relation:'Network', lastContact:'', outcome:'', nextStep:'Reach out via Daniel — explore leadership openings', due:'2026-04-15', notes:'Key B&O contact. Access via Daniel.', log:[] },
+    { id:'ct1', name:'Anne Gæmelke', title:'VP, Global Brand Lead', company:'LEO Pharma', companyId:'c1', relation:'Network', lastContact:'2026-04-02', outcome:'Contacted CHRO Helle directly after Magnus request. Anne is in progress.', nextStep:'Await response from LEO — Anne is handling it', due:'2026-04-15', notes:'Family friend. Key connector at LEO Pharma. Nøglekontakt til CHRO Helle Hedegaard Juhl.', log:[{date:'2026-04-02',type:'Phone call',outcome:'Anne confirmed she would contact Helle directly on Magnus behalf.',nextStep:'Await LEO response',due:'2026-04-15'}] },
+    { id:'ct2', name:'Peter Andresen', title:'SVP Better Ways of Working', company:'Danske Bank', companyId:'c5', relation:'Network', lastContact:'2026-04-01', outcome:'Responded positively — remembers Magnus. Said yes to coffee. Postbyen.', nextStep:'Propose concrete time: Friday or Mon/Wed/Fri next week', due:'2026-04-11', notes:'Former teacher at Officersskolen. Warm reconnection.', log:[{date:'2026-04-01',type:'LinkedIn message',outcome:'Positive response. Remembers Magnus. Coffee yes.',nextStep:'Send concrete time proposal',due:'2026-04-11'}] },
+    { id:'ct3', name:'Peter Littau', title:'People & Project Manager', company:'Danske Bank', companyId:'c5', relation:'Network', lastContact:'2026-04-02', outcome:'Offered coffee at DB HQ next week immediately.', nextStep:'Follow up if no response within 2 days', due:'2026-04-10', notes:'Cold contact — DB network. Very responsive.', log:[] },
+    { id:'ct4', name:'Christian Thorsen', title:'Leader (former Head of P&BC)', company:'Danske Bank', companyId:'c5', relation:'Network', lastContact:'2026-03-10', outcome:'Answering questions but keeping cards close. Will take it to interview stage.', nextStep:'No action now — he will engage at interview stage', due:'', notes:'Previous role holder for P&BC Office. Knows the role inside out.', log:[] },
+    { id:'ct5', name:'Simone Sonn', title:'Chief of Staff (on maternity leave)', company:'LEO Pharma', companyId:'c1', relation:'Network', lastContact:'2026-04-03', outcome:'Magnus reached out Thursday — no response yet.', nextStep:'Follow up Monday if no response', due:'2026-04-13', notes:'Outgoing CoS at LEO Pharma. Key insight into the role.', log:[] },
+    { id:'ct6', name:'Maria Nagbøl', title:'Program Lead', company:'Rockwool', companyId:'c2', relation:'Network', lastContact:'2026-04-01', outcome:'Coffee cancelled due to urgent matter — suggests Monday next week.', nextStep:'Confirm time and place — ask about hiring manager for Head of Project Support', due:'2026-04-13', notes:'Former colleague. Coffee meeting scheduled Monday.', log:[{date:'2026-04-01',type:'LinkedIn message',outcome:'Coffee cancelled by Maria — rescheduled to Monday next week.',nextStep:'Confirm Monday time and ask about hiring manager',due:'2026-04-13'}] },
+    { id:'ct7', name:'Anders Grube Virring', title:'Head of Mature Manufacturing', company:'Coloplast', companyId:'c7', relation:'Network', lastContact:'2026-03-25', outcome:'Name-dropped Magnus to Troels (QA PM role). Shared Bavarian Nordic posting.', nextStep:'Coffee/follow-up after any Coloplast interview', due:'', notes:'Arranged site visit. Active ally. Good foundation.', log:[] },
+    { id:'ct8', name:'Sofie Cecilie Sønderby', title:'Product Owner Enterprise IT', company:'Novo Nordisk', companyId:'c8', relation:'Network', lastContact:'2026-04-02', outcome:'Helped with GN TL&D (spoke with Ulrika). Asked to reach Simone at LEO.', nextStep:'Check in in a few days — did Sofie reach Simone?', due:'2026-04-10', notes:'Former team member. Strong ally.', log:[] },
+    { id:'ct9', name:'Pernille Heby Bech', title:'Strategic HR Leader, AskHR DK', company:'Novo Nordisk', companyId:'c8', relation:'Network', lastContact:'2026-04-01', outcome:'Posting is live. Magnus interested but concerned about job level.', nextStep:'Consider application. Coffee after Easter.', due:'2026-04-20', notes:'Former colleague. Posting 2 Manager positions. Back after Easter.', log:[] },
+    { id:'ct10', name:'Sugasini Sooriyakumaran', title:'P&O Partner', company:'Novo Nordisk', companyId:'c8', relation:'Network', lastContact:'2026-04-01', outcome:'Sharing internal postings regularly. Shared AskHR and Forsvaret jobs.', nextStep:'Thank and keep in contact — she is watching internally', due:'', notes:'Former collaboration partner. Active ally sharing opportunities.', log:[] },
+    { id:'ct11', name:'Dorthe Gottwald Finne', title:'VP Operations', company:'Weibel', companyId:'c4', relation:'Decision maker', lastContact:'2026-03-28', outcome:'Acknowledged application receipt.', nextStep:'Follow up in 2 weeks if no response', due:'2026-04-15', notes:'Hiring manager — direct contact.', log:[] },
+    { id:'ct12', name:'Kristian Vilstrup', title:'Director Amplifier Production', company:'Demant', companyId:'c27', relation:'Network', lastContact:'2026-03-24', outcome:'Offered coffee in March — Magnus followed up 24 Mar, no response.', nextStep:'Send new message — propose concrete time', due:'2026-04-10', notes:'Military network. Former colleague.', log:[] },
+    { id:'ct13', name:'Kenneth Nielsen', title:'Optimization & SC', company:'Bang & Olufsen', companyId:'c6', relation:'Network', lastContact:'2026-03-15', outcome:'Coffee/Teams meeting attempted for months — still not held.', nextStep:'Book Teams meeting with concrete date NOW', due:'2026-04-10', notes:'B&O network — long dialogue. Veteran.', log:[] },
+    { id:'ct14', name:'Anders Ammitzbøll', title:'Director', company:'Novo Nordisk', companyId:'c8', relation:'Network', lastContact:'2026-03-10', outcome:'Offered coffee in Måløv — no date set.', nextStep:'Propose concrete date for coffee in Måløv', due:'2026-04-12', notes:'Former collaboration partner.', log:[] },
+    { id:'ct15', name:'Sabine Winther', title:'Director', company:'Novo Nordisk', companyId:'c8', relation:'Network', lastContact:'2026-03-20', outcome:'Sharing CV in Taastrup and Køge via her network. Jon (husband) also helping.', nextStep:'No action — she is watching', due:'', notes:'Former colleague. CV distributed passively.', log:[] },
+    { id:'ct16', name:'Charlotte Bech Fribert', title:'VP Program Excellence & PMO', company:'Bang & Olufsen', companyId:'c6', relation:'Network', lastContact:'2026-03-20', outcome:'Honest feedback: gap too large for Senior PM. Magnus asked for coffee.', nextStep:'Await coffee response — B&O is a dream, keep the relationship', due:'2026-04-12', notes:'Cold contact — B&O dream employer. Warm but honest.', log:[{date:'2026-03-20',type:'LinkedIn message',outcome:'Sent coffee invitation after Senior PM rejection. Charlotte gave honest feedback on gap.',nextStep:'Await coffee response',due:'2026-04-12'}] },
+    { id:'ct17', name:'Jacob Ross Stenger', title:'Head of Project & Transformation', company:'WSAudiology', companyId:'c15', relation:'Network', lastContact:'2026-01-23', outcome:'Jan 23: Magnus followed up. Jacob said he would reach Martin Hagger Kirk.', nextStep:'Follow up — has Martin been contacted?', due:'2026-04-10', notes:'WSA network. Introduced to Martin Hagger Kirk.', log:[] },
+    { id:'ct18', name:'Maria Rosenørn Lasaki', title:'Head of Business Support & EA to CVP', company:'Novo Nordisk', companyId:'c8', relation:'Network', lastContact:'2026-04-05', outcome:'Positive response — will keep Magnus in mind. Coffee/contacts suggested.', nextStep:'Follow up after Easter if no response', due:'2026-04-22', notes:'Former Novo colleague. Warm response to outreach.', log:[{date:'2026-04-05',type:'LinkedIn message',outcome:'Positive exchange. Maria will keep Magnus in mind. Suggested coffee and offered to share contacts.',nextStep:'Follow up after Easter',due:'2026-04-22'}] },
+    { id:'ct19', name:'Vibe Grundsøe', title:'Sr. Director P&O', company:'Novo Nordisk', companyId:'c8', relation:'Network', lastContact:'2026-03-25', outcome:'Responded kindly — few openings currently, will remember Magnus.', nextStep:'No action now. Follow up in 6-8 weeks.', due:'2026-06-01', notes:'2nd degree connection — cold contact. Passive.', log:[] },
+    { id:'ct20', name:'Mads Juul', title:'HR Business Partner', company:'Novo Nordisk', companyId:'c8', relation:'Network', lastContact:'2026-03-20', outcome:'Will keep Magnus in mind internally.', nextStep:'No action now', due:'', notes:'Former colleague. Passive ally.', log:[] },
+    { id:'ct21', name:'Peter Krastins', title:'Director', company:'Ørsted', companyId:'c28', relation:'Network', lastContact:'2026-03-15', outcome:'Discouraged application to Senior Portfolio Manager. Keeping an eye out.', nextStep:'Coffee — strong relationship. Ørsted interesting long-term.', due:'2026-04-20', notes:'Old friend — strong relation. Ørsted on long-term radar.', log:[] },
+    { id:'ct22', name:'Line Randløv', title:'Head of People & Culture', company:'Clipper Bulk', companyId:'c33', relation:'Network', lastContact:'2026-04-01', outcome:'Asked for recommendation to Lene at TORM (People BP to CFO).', nextStep:'Follow up if no response within a few days', due:'2026-04-10', notes:'Personal network.', log:[] },
+    { id:'ct23', name:'Jacob Jørgensen', title:'Strategic HR BP', company:'Nets', companyId:'c31', relation:'Network', lastContact:'2026-03-23', outcome:'Sent message 23 Mar — no response yet.', nextStep:'Follow up after Easter', due:'2026-04-22', notes:'Sister recommendation — cold contact.', log:[] },
+    { id:'ct24', name:'Hans August Carlander', title:'CPO', company:'SOUNDBOKS', companyId:'c29', relation:'Network', lastContact:'2026-03-10', outcome:'Hiring freeze — but positive dialogue. Magnus should watch for postings.', nextStep:'Keep on radar. Flag when relevant postings appear.', due:'', notes:'Audio/tech network. Hiring freeze currently.', log:[] },
+    { id:'ct25', name:'Tommy Wolff Hjorth', title:'Chief Belonging Officer', company:'Novo Nordisk', companyId:'c8', relation:'Network', lastContact:'2026-03-15', outcome:'Will keep Magnus in mind.', nextStep:'No action now', due:'', notes:'Former colleague. Passive.', log:[] },
+    { id:'ct26', name:'Simon Bro', title:'HR Projektleder', company:'Forsvaret', companyId:'c32', relation:'Network', lastContact:'2026-03-20', outcome:'Reached out and offered help.', nextStep:'Keep connection. Forsvaret could become relevant.', due:'', notes:'Veteran network.', log:[] },
+    { id:'ct27', name:'Nicolai Mønster Gudomlund', title:'PMO Manager', company:'GN Audio', companyId:'c14', relation:'Decision maker', lastContact:'2026-03-28', outcome:'Rejected but gave concrete feedback: too senior. Positive tone.', nextStep:'Keep GN connection. Good feedback to use.', due:'', notes:'Hiring manager for GN PMO role. Constructive rejection.', log:[{date:'2026-03-28',type:'Email',outcome:'Rejection received. Feedback: profile is too senior for the role. Tone was positive and constructive.',nextStep:'Keep connection for future GN opportunities',due:''}] },
   ],
   applications: [
-    { id:'a1', role:'Chief of Staff, Global People & Corporate Affairs', company:'LEO Pharma', companyId:'c1', status:'Sent', deadline:'2026-04-15', followup:'2026-04-20', contacts:'Anne, Simone', outcome:'Submitted early April 2026', notes:'Ans. + CV. Reporting to CHRO Helle Hedegaard Juhl.', appLog:[] },
-    { id:'a2', role:'Head of P&BC Office in Technology & Services', company:'Danske Bank', companyId:'c5', status:'Sent', deadline:'2026-04-14', followup:'2026-04-18', contacts:'Peter, Christian Skovgaard Thorsen', outcome:'Submitted. Two warm contacts.', notes:'Ansøgning.', appLog:[] },
-    { id:'a3', role:'Head of Strategy – People and Culture', company:'SimCorp', companyId:'c9', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted. Awaiting.', notes:'Ansøgning.', appLog:[] },
-    { id:'a4', role:'Supply Chain Director', company:'Weibel Scientific', companyId:'c4', status:'Sent', deadline:'2026-04-08', followup:'2026-04-12', contacts:'Dorthe Gottwald Finne', outcome:'Submitted. Contact made with Dorthe.', notes:'Ans. + CV. Military background relevant.', appLog:[] },
-    { id:'a5', role:'Director, Production Engineering & Ops PM', company:'Weibel Scientific', companyId:'c4', status:'Sent', deadline:'', followup:'2026-04-18', contacts:'Dorthe Gottwald Finne', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
-    { id:'a6', role:'PMO Manager, Innovation Project Management', company:'Coloplast', companyId:'c7', status:'Sent', deadline:'', followup:'2026-04-18', contacts:'Troels', outcome:'Submitted.', notes:'Ans. + CV.', appLog:[] },
-    { id:'a7', role:'Head of QA Project Management', company:'Coloplast', companyId:'c7', status:'Rejected', deadline:'2026-03-20', followup:'', contacts:'Troels', outcome:'Auto-rejected despite network recommendation.', notes:'Ans. + CV. Keep Troels warm.', appLog:[{date:'2026-03-20',type:'Email',outcome:'Auto-rejection received. Network recommendation from Troels did not help.',nextStep:'Keep Troels warm for other openings',due:''}] },
-    { id:'a8', role:'Senior Project Portfolio Manager', company:'Abacus Medicine', companyId:'c3', status:'Sent', deadline:'', followup:'2026-04-19', contacts:'', outcome:'Submitted.', notes:'Ans. + CV.', appLog:[] },
-    { id:'a9', role:'Head of Project Support', company:'Rockwool', companyId:'c2', status:'Sent', deadline:'2026-04-10', followup:'2026-04-17', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
-    { id:'a10', role:'Manager, Civil & Utility Project Managers', company:'Novonesis', companyId:'c10', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
-    { id:'a11', role:'Manager, Fermentation Team', company:'Novonesis', companyId:'c10', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
-    { id:'a12', role:'Afdelingschef, Projekt- og Ledelsessupport', company:'HOFOR', companyId:'c11', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning (dansk).', appLog:[] },
-    { id:'a13', role:'Senior Manager, Manufacturing Technology', company:'Bavarian Nordic', companyId:'c12', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
-    { id:'a14', role:'Drifts- og implementeringschef, Salgssupport', company:'EDC', companyId:'c13', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
-    { id:'a15', role:'Head of Planning EMEA, Global Operations', company:'GN Audio', companyId:'c14', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
-    { id:'a16', role:'Global Head of Talent, Learning & Development', company:'GN Audio', companyId:'c14', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
-    { id:'a17', role:'Head of Platform Development', company:'GN Audio', companyId:'c14', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
-    { id:'a18', role:'PMO & Performance Manager, Global Operations', company:'GN Audio', companyId:'c14', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
-    { id:'a19', role:'Senior Manager, PLM Process Management', company:'WSAudiology', companyId:'c15', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
-    { id:'a20', role:'Associate Director, People & Culture Operations DK', company:'Fujifilm Denmark', companyId:'c16', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
-    { id:'a21', role:'Manager, Strategy', company:'Zealand Pharma', companyId:'c17', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
-    { id:'a22', role:'Senior TMO Manager, PELM', company:'LEGO', companyId:'c18', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
-    { id:'a23', role:'Nordic Supply Chain Manager', company:'Garmin', companyId:'c19', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
-    { id:'a24', role:'Manager of Learning & Development', company:'CIP', companyId:'c20', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
-    { id:'a25', role:'Leder, Kundevendt Digitalisering', company:'Alka', companyId:'c21', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
-    { id:'a26', role:'Head of People & Culture', company:'Liewood', companyId:'c22', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning.', appLog:[] },
-    { id:'a27', role:'Sektionsleder, OSINT', company:'PET', companyId:'c23', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'Ansøgning. Military intelligence background relevant.', appLog:[] },
-    { id:'a28', role:'Manager for Plant Design Department', company:'NNE', companyId:'c24', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'CV only.', appLog:[] },
-    { id:'a29', role:'Head of Project Support', company:'Compass HR Group', companyId:'c25', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'LinkedIn application.', appLog:[] },
+    { id:'a1', role:'Chief of Staff, Global People & Corporate Affairs', company:'LEO Pharma', companyId:'c1', status:'Sent', deadline:'2026-04-15', followup:'2026-04-20', contacts:'Anne Gæmelke, Simone Sonn', outcome:'Submitted early April 2026', notes:'Reporting to CHRO Helle Hedegaard Juhl.', appLog:[] },
+    { id:'a2', role:'Head of P&BC Office in Technology & Services', company:'Danske Bank', companyId:'c5', status:'Sent', deadline:'2026-04-14', followup:'2026-04-18', contacts:'Peter Andresen, Peter Littau, Christian Thorsen', outcome:'Submitted. Three warm contacts.', notes:'', appLog:[] },
+    { id:'a3', role:'Head of Strategy – People and Culture', company:'SimCorp', companyId:'c9', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a4', role:'Supply Chain Director', company:'Weibel Scientific', companyId:'c4', status:'Sent', deadline:'2026-04-08', followup:'2026-04-15', contacts:'Dorthe Gottwald Finne', outcome:'Submitted. Contact made with Dorthe.', notes:'Military background relevant.', appLog:[] },
+    { id:'a5', role:'Director, Production Engineering & Ops PM', company:'Weibel Scientific', companyId:'c4', status:'Sent', deadline:'', followup:'2026-04-18', contacts:'Dorthe Gottwald Finne', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a6', role:'PMO Manager, Innovation Project Management', company:'Coloplast', companyId:'c7', status:'Sent', deadline:'', followup:'2026-04-18', contacts:'Anders Grube Virring, Troels', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a7', role:'Head of QA Project Management', company:'Coloplast', companyId:'c7', status:'Rejected', deadline:'2026-03-20', followup:'', contacts:'Anders Grube Virring, Troels', outcome:'Auto-rejected despite network recommendation.', notes:'Keep Troels warm.', appLog:[{date:'2026-03-20',type:'Rejection received',who:'ATS system',outcome:'Auto-rejection received. Network recommendation from Troels did not help.',nextStep:'Keep Troels and Anders warm for other openings',due:''}] },
+    { id:'a8', role:'Senior Project Portfolio Manager', company:'Abacus Medicine', companyId:'c3', status:'Sent', deadline:'', followup:'2026-04-19', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a9', role:'Head of Project Support', company:'Rockwool', companyId:'c2', status:'Sent', deadline:'2026-04-10', followup:'2026-04-17', contacts:'Maria Nagbøl', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a10', role:'Manager, Civil & Utility Project Managers', company:'Novonesis', companyId:'c10', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a11', role:'Manager, Fermentation Team', company:'Novonesis', companyId:'c10', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a12', role:'Afdelingschef, Projekt- og Ledelsessupport', company:'HOFOR', companyId:'c11', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a13', role:'Senior Manager, Manufacturing Technology', company:'Bavarian Nordic', companyId:'c12', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'Anders Grube Virring', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a14', role:'Drifts- og implementeringschef, Salgssupport', company:'EDC', companyId:'c13', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a15', role:'Head of Planning EMEA, Global Operations', company:'GN Audio', companyId:'c14', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'Nicolai Mønster Gudomlund', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a16', role:'Global Head of Talent, Learning & Development', company:'GN Audio', companyId:'c14', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'Sofie Cecilie Sønderby', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a17', role:'Head of Platform Development', company:'GN Audio', companyId:'c14', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a18', role:'PMO & Performance Manager, Global Operations', company:'GN Audio', companyId:'c14', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'Nicolai Mønster Gudomlund', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a19', role:'Senior Manager, PLM Process Management', company:'WSAudiology', companyId:'c15', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'Jacob Ross Stenger', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a20', role:'Associate Director, People & Culture Operations DK', company:'Fujifilm Denmark', companyId:'c16', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a21', role:'Manager, Strategy', company:'Zealand Pharma', companyId:'c17', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a22', role:'Senior TMO Manager, PELM', company:'LEGO', companyId:'c18', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a23', role:'Nordic Supply Chain Manager', company:'Garmin', companyId:'c19', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a24', role:'Manager of Learning & Development', company:'CIP', companyId:'c20', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a25', role:'Leder, Kundevendt Digitalisering', company:'Alka', companyId:'c21', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a26', role:'Head of People & Culture', company:'Liewood', companyId:'c22', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a27', role:'Sektionsleder, OSINT', company:'PET', companyId:'c23', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'Simon Bro', outcome:'Submitted.', notes:'Military intelligence background relevant.', appLog:[] },
+    { id:'a28', role:'Manager for Plant Design Department', company:'NNE', companyId:'c24', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a29', role:'Head of Project Support', company:'Compass HR Group', companyId:'c25', status:'Sent', deadline:'', followup:'2026-04-20', contacts:'', outcome:'Submitted.', notes:'', appLog:[] },
+    { id:'a30', role:'Erfaren leder til People Support & Systems', company:'Nykredit', companyId:'c26', status:'Sent', deadline:'', followup:'2026-04-22', contacts:'', outcome:'Submitted 8 April 2026.', notes:'HR leadership + systems. Strong people + structure fit.', appLog:[{date:'2026-04-08',type:'Email sent',who:'',outcome:'Application submitted via Nykredit careers portal.',nextStep:'Follow up if no response by April 22',due:'2026-04-22'}] },
+    { id:'a31', role:'Manager til AskHR', company:'Novo Nordisk', companyId:'c8', status:'Sent', deadline:'', followup:'2026-04-22', contacts:'Pernille Heby Bech, Sugasini Sooriyakumaran', outcome:'Submitted 8 April 2026.', notes:'Internal NN network: Pernille (hiring) + Sugasini (ally). People support + HR operations.', appLog:[{date:'2026-04-08',type:'Email sent',who:'',outcome:'Application submitted. Two internal contacts.',nextStep:'Follow up with Pernille after Easter',due:'2026-04-22'}] },
   ]
 };
 
@@ -640,17 +688,22 @@ function renderCompanies() {
 // CONTACTS
 function renderContacts() {
   const rc={'Peer':'blue','Leader above me':'purple','Recruiter':'amber','Network':'green','Decision maker':'red'};
-  document.getElementById('contacts-body').innerHTML = db.contacts.map(c=>`
-    <tr>
+  const cs={'Active ally':'active','Passive':'passive','Pending reply':'pending','Follow up':'followup','Closed':'closed'};
+  document.getElementById('contacts-body').innerHTML = db.contacts.map(c=>{
+    const statusKey = c.networkStatus||'Pending reply';
+    const dotClass = cs[statusKey]||'pending';
+    return `<tr>
       <td><a onclick="openContactDetail('${c.id}')">${c.name}</a></td>
       <td style="color:var(--muted);font-size:.84rem;">${c.title}</td>
       <td>${c.company}</td>
       <td><span class="badge badge-${rc[c.relation]||'grey'}">${c.relation}</span></td>
+      <td><span class="status-dot status-${dotClass}"></span><span style="font-size:.8rem;">${statusKey}</span></td>
       <td>${c.lastContact?formatDate(c.lastContact):'—'}</td>
       <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.nextStep||'—'}</td>
       <td>${c.due?`<span style="color:var(--red);font-weight:500;">${formatDate(c.due)}</span>`:'—'}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="editContact('${c.id}')">Edit</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 function openContactDetail(id) {
@@ -661,6 +714,13 @@ function openContactDetail(id) {
   document.getElementById('d-company').textContent = c.company||'—';
   document.getElementById('d-relation').innerHTML = `<span class="badge badge-blue">${c.relation}</span>`;
   document.getElementById('d-notes').textContent = c.notes||'—';
+  // Add network status line dynamically
+  const statusEl = document.getElementById('d-networkstatus');
+  if (statusEl) {
+    const cs={'Active ally':'active','Passive':'passive','Pending reply':'pending','Follow up':'followup','Closed':'closed'};
+    const s = c.networkStatus||'Pending reply';
+    statusEl.innerHTML = `<span class="status-dot status-${cs[s]||'pending'}"></span>${s}`;
+  }
   document.getElementById('d-nextstep').textContent = c.nextStep||'—';
   document.getElementById('d-due').textContent = c.due?formatDate(c.due):'—';
   renderLog(c);
@@ -742,8 +802,15 @@ function renderApplications() {
   const filtered = appFilter==='all' ? db.applications : db.applications.filter(a=>a.status===appFilter);
   document.getElementById('applications-body').innerHTML = filtered.map(a=>{
     const score = a.matchScore ? parseInt(a.matchScore) : null;
-    const scoreColor = score ? (score>=75?'var(--green)':score>=55?'var(--amber)':'var(--red)') : 'var(--muted)';
-    const scoreHtml = score ? `<span style="font-weight:700;color:${scoreColor};">${score}%</span>` : '—';
+    const barColor = score
+      ? score>=75 ? '#2d6a4f' : score>=55 ? '#b5621a' : '#9b2226'
+      : null;
+    const scoreHtml = score
+      ? `<div style="display:flex;align-items:center;gap:.4rem;">
+           <div class="bar-wrap"><div class="bar-fill" style="width:${score}%;background:${barColor};"></div></div>
+           <span style="font-size:.75rem;font-weight:600;color:${barColor};">${score}%</span>
+         </div>`
+      : '<span style="color:var(--muted);font-size:.8rem;">—</span>';
     return `<tr>
       <td><strong><a onclick="openAppDetail('${a.id}')" style="cursor:pointer;">${a.role}</a></strong></td>
       <td>${a.company}</td>
@@ -804,7 +871,7 @@ function saveContact() {
   const editId=document.getElementById('contact-edit-id').value;
   const companyId=document.getElementById('ct-company').value;
   const companyName=companyId?(db.companies.find(c=>c.id===companyId)||{}).name||'':'';
-  const obj={id:editId||newId(),name:document.getElementById('ct-name').value.trim(),title:document.getElementById('ct-title').value.trim(),company:companyName,companyId,relation:document.getElementById('ct-relation').value,lastContact:document.getElementById('ct-lastcontact').value,outcome:document.getElementById('ct-outcome').value.trim(),nextStep:document.getElementById('ct-nextstep').value.trim(),due:document.getElementById('ct-due').value,notes:document.getElementById('ct-notes').value.trim(),log:editId?(db.contacts.find(c=>c.id===editId)||{}).log||[]:[]};
+  const obj={id:editId||newId(),name:document.getElementById('ct-name').value.trim(),title:document.getElementById('ct-title').value.trim(),company:companyName,companyId,relation:document.getElementById('ct-relation').value,networkStatus:document.getElementById('ct-networkstatus').value,lastContact:document.getElementById('ct-lastcontact').value,outcome:document.getElementById('ct-outcome').value.trim(),nextStep:document.getElementById('ct-nextstep').value.trim(),due:document.getElementById('ct-due').value,notes:document.getElementById('ct-notes').value.trim(),log:editId?(db.contacts.find(c=>c.id===editId)||{}).log||[]:[]};
   if(!obj.name)return alert('Name required');
   if(editId){const i=db.contacts.findIndex(c=>c.id===editId);db.contacts[i]=obj;}else db.contacts.push(obj);
   saveDB();closeModal('contact');document.getElementById('contact-edit-id').value='';renderContacts();updateStats();
@@ -819,6 +886,7 @@ function editContact(id) {
   document.getElementById('ct-company').value=c.companyId||'';
   document.getElementById('ct-relation').value=c.relation;
   document.getElementById('ct-lastcontact').value=c.lastContact||'';
+  document.getElementById('ct-networkstatus').value=c.networkStatus||'Pending reply';
   document.getElementById('ct-outcome').value=c.outcome||'';
   document.getElementById('ct-nextstep').value=c.nextStep||'';
   document.getElementById('ct-due').value=c.due||'';
