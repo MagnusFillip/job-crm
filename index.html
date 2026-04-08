@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Magnus · Job CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Epilogue:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f7f5f0; --surface: #ffffff; --border: #e4e0d8; --text: #1a1814;
+  --muted: #8a8478; --faint: #f0ece3;
+  --green: #2d6a4f; --green-light: #d8f3dc;
+  --amber: #b5621a; --amber-light: #fde8d0;
+  --red: #9b2226; --red-light: #fde8e8;
+  --blue: #1d3557; --blue-light: #dde8f5;
+  --purple: #5e3a8c; --purple-light: #ede4f8;
+  --sidebar-w: 220px;
+}
+body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; font-size: 14px; }
+
+/* SIDEBAR */
+.sidebar { width: var(--sidebar-w); min-height: 100vh; background: var(--text); color: #f0ece3; display: flex; flex-direction: column; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; }
+.sidebar-logo { padding: 1.4rem 1.5rem 1rem; border-bottom: 1px solid #2e2b25; }
+.sidebar-logo h1 { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 800; }
+.sidebar-logo p { font-size: .75rem; color: #7a7468; margin-top: .2rem; }
+.nav { padding: 1rem 0; flex: 1; }
+.nav-item { display: flex; align-items: center; gap: .7rem; padding: .6rem 1.5rem; cursor: pointer; font-size: .85rem; color: #7a7468; border-left: 2px solid transparent; transition: all .15s; user-select: none; }
+.nav-item:hover { color: #f0ece3; }
+.nav-item.active { color: #f0ece3; border-left-color: #e8c547; background: rgba(232,197,71,.08); }
+.sidebar-stats { padding: 1rem 1.5rem; border-top: 1px solid #2e2b25; }
+.sidebar-stats p { font-size: .7rem; color: #5a5650; margin-bottom: .6rem; text-transform: uppercase; letter-spacing: .07em; }
+.stat-row { display: flex; justify-content: space-between; margin-bottom: .3rem; }
+.stat-row span:first-child { font-size: .8rem; color: #7a7468; }
+.stat-row span:last-child { font-size: .8rem; color: #f0ece3; font-weight: 500; }
+
+/* MAIN */
+.main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+.topbar { height: 56px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; position: sticky; top: 0; z-index: 50; }
+.topbar-title { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; }
+.content { padding: 2rem; flex: 1; max-width: 1100px; }
+
+/* BUTTONS */
+.btn { font-family: 'Epilogue', sans-serif; font-size: .8rem; font-weight: 500; padding: .45rem 1rem; border-radius: 6px; border: none; cursor: pointer; transition: all .15s; }
+.btn-primary { background: var(--text); color: var(--bg); }
+.btn-primary:hover { background: #2e2b25; }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+.btn-ghost:hover { border-color: var(--text); color: var(--text); }
+.btn-sm { padding: .3rem .7rem; font-size: .75rem; }
+
+/* BADGES */
+.badge { display: inline-flex; align-items: center; padding: .2rem .6rem; border-radius: 2rem; font-size: .72rem; font-weight: 500; }
+.badge-green { background: var(--green-light); color: var(--green); }
+.badge-amber { background: var(--amber-light); color: var(--amber); }
+.badge-red { background: var(--red-light); color: var(--red); }
+.badge-blue { background: var(--blue-light); color: var(--blue); }
+.badge-purple { background: var(--purple-light); color: var(--purple); }
+.badge-grey { background: var(--faint); color: var(--muted); }
+
+/* CARDS */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.card-header { padding: 1.2rem 1.4rem .8rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.card-header h2 { font-family: 'Syne', sans-serif; font-size: .9rem; font-weight: 700; }
+.card-body { padding: 1.2rem 1.4rem; }
+
+/* GRIDS */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+
+/* STAT CARDS */
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1.4rem; }
+.stat-card .label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .4rem; }
+.stat-card .value { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; line-height: 1; }
+.stat-card .sub { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
+
+/* TABLE */
+.table { width: 100%; border-collapse: collapse; }
+.table th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 500; padding: .6rem 1rem; border-bottom: 1px solid var(--border); }
+.table td { padding: .75rem 1rem; border-bottom: 1px solid var(--faint); vertical-align: middle; }
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: var(--faint); }
+.table td a { color: var(--blue); text-decoration: none; font-weight: 500; cursor: pointer; }
+.table td a:hover { text-decoration: underline; }
+
+/* QUEUE */
+.queue-item { display: flex; align-items: flex-start; gap: 1rem; padding: .9rem 1.2rem; border-bottom: 1px solid var(--faint); }
+.queue-item:last-child { border-bottom: none; }
+.queue-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: .3rem; flex-shrink: 0; }
+.dot-red { background: var(--red); }
+.dot-amber { background: #f4a261; }
+.dot-green { background: var(--green); }
+.queue-body .q-title { font-weight: 500; font-size: .88rem; margin-bottom: .2rem; }
+.queue-body .q-sub { font-size: .78rem; color: var(--muted); }
+.queue-body .q-date { font-size: .75rem; color: var(--red); font-weight: 500; }
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(26,24,20,.6); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--surface); border-radius: 12px; width: 520px; max-width: 95vw; max-height: 90vh; overflow-y: auto; transform: translateY(10px); transition: transform .2s; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-header { padding: 1.4rem 1.6rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-header h3 { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; }
+.modal-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--muted); padding: .2rem .4rem; }
+.modal-body { padding: 1.4rem 1.6rem; display: flex; flex-direction: column; gap: 1rem; }
+.modal-footer { padding: 1rem 1.6rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: .5rem; }
+
+/* FORM */
+.field { display: flex; flex-direction: column; gap: .35rem; }
+.field label { font-size: .78rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.field input, .field select, .field textarea { font-family: 'Epilogue', sans-serif; font-size: .88rem; padding: .6rem .8rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); outline: none; transition: border-color .15s; width: 100%; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--text); }
+.field textarea { resize: vertical; min-height: 80px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+
+/* LOG */
+.log-entry { display: flex; gap: .8rem; padding: .6rem 0; border-bottom: 1px solid var(--faint); }
+.log-entry:last-child { border-bottom: none; }
+.log-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; margin-top: .3rem; }
+.log-date { font-size: .72rem; color: var(--muted); }
+.log-text { font-size: .84rem; margin-top: .1rem; }
+.log-next { font-size: .78rem; color: var(--amber); margin-top: .2rem; }
+
+/* DETAIL */
+.detail-panel { display: none; }
+.detail-panel.open { display: block; }
+
+/* SECTION */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.2rem; }
+.section-header h2 { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 800; }
+
+/* TABS */
+.tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.4rem; }
+.tab { padding: .6rem 1.2rem; cursor: pointer; font-size: .84rem; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; }
+.tab.active { color: var(--text); border-bottom-color: var(--text); font-weight: 500; }
+
+/* PAGE */
+.page { display: none; }
+.page.active { display: block; }
+
+/* SPACING */
+.mt1 { margin-top: .5rem; } .mt2 { margin-top: 1rem; } .mt3 { margin-top: 1.5rem; }
+
+/* MOBILE */
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); transition: transform .25s; }
+  .sidebar.open { transform: translateX(0); }
+  .main { margin-left: 0; }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .content { padding: 1rem; }
+  .field-row { grid-template-columns: 1fr; }
+}
+.mobile-toggle { display: none; position: fixed; bottom: 1.5rem; right: 1.5rem; width: 48px; height: 48px; border-radius: 50%; background: var(--text); color: var(--bg); border: none; font-size: 1.2rem; cursor: pointer; z-index: 150; box-shadow: 0 4px 16px rgba(0,0,0,.2); align-items: center; justify-content: center; }
+@media (max-width: 768px) { .mobile-toggle { display: flex; } }
+.empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+.empty-icon { font-size: 2rem; margin-bottom: .5rem; }
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <h1>Magnus · CRM</h1>
+    <p>Job Search OS</p>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active" data-page="dashboard">⚡ Dashboard</div>
+    <div class="nav-item" data-page="companies">🏢 Companies</div>
+    <div class="nav-item" data-page="contacts">👤 Contacts</div>
+    <div class="nav-item" data-page="applications">📋 Applications</div>
+  </nav>
+  <div class="sidebar-stats">
+    <p>Pipeline</p>
+    <div class="stat-row"><span>Applications</span><span id="stat-apps">0</span></div>
+    <div class="stat-row"><span>Interviews</span><span id="stat-interviews">0</span></div>
+    <div class="stat-row"><span>Contacts</span><span id="stat-contacts">0</span></div>
+    <div class="stat-row"><span>Companies</span><span id="stat-companies">0</span></div>
+  </div>
+</aside>
+
+<button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
+
+<main class="main">
+  <div class="topbar">
+    <span class="topbar-title" id="page-title">Dashboard</span>
+    <button class="btn btn-primary" onclick="openModal('import')" style="display:flex;align-items:center;gap:.4rem;">📥 Import conversation</button>
+  </div>
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="grid-3 mt2" id="dash-stats"></div>
+      <div class="grid-2 mt3">
+        <div class="card">
+          <div class="card-header"><h2>⚡ Next 48 hours</h2></div>
+          <div id="queue-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2>📋 Pipeline</h2></div>
+          <div class="card-body" id="pipeline-view"></div>
+        </div>
+      </div>
+      <div class="card mt3">
+        <div class="card-header"><h2>👤 Contact activity</h2></div>
+        <table class="table">
+          <thead><tr><th>Name</th><th>Company</th><th>Last contact</th><th>Next step</th><th>Due</th></tr></thead>
+          <tbody id="recent-contacts-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- COMPANIES -->
+    <div class="page" id="page-companies">
+      <div class="section-header">
+        <h2>Companies</h2>
+        <button class="btn btn-primary" onclick="openModal('company')">+ Add company</button>
+      </div>
+      <div class="card">
+        <table class="table">
+          <thead><tr><th>Company</th><th>Industry</th><th>Status</th><th>Contacts</th><th>Open roles</th><th>Notes</th><th></th></tr></thead>
+          <tbody id="companies-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CONTACTS -->
+    <div class="page" id="page-contacts">
+      <div class="section-header">
+        <h2>Contacts</h2>
+        <button class="btn btn-primary" onclick="openModal('contact')">+ Add contact</button>
+      </div>
+      <div class="card">
+        <table class="table">
+          <thead><tr><th>Name</th><th>Title</th><th>Company</th><th>Relation</th><th>Last contact</th><th>Next step</th><th>Due</th><th></th></tr></thead>
+          <tbody id="contacts-body"></tbody>
+        </table>
+      </div>
+      <div class="detail-panel mt3" id="contact-detail">
+        <div class="card">
+          <div class="card-header">
+            <h2 id="detail-contact-name"></h2>
+            <button class="btn btn-ghost btn-sm" onclick="closeDetail()">← Back</button>
+          </div>
+          <div class="card-body">
+            <div class="grid-2">
+              <div>
+                <div class="field"><label>Title</label><span id="d-title"></span></div>
+                <div class="field mt2"><label>Company</label><span id="d-company"></span></div>
+                <div class="field mt2"><label>Relation</label><span id="d-relation"></span></div>
+                <div class="field mt2"><label>Next step</label><span id="d-nextstep"></span></div>
+                <div class="field mt2"><label>Due</label><span id="d-due" style="color:var(--red);font-weight:500;"></span></div>
+              </div>
+              <div>
+                <div class="field"><label>Activity log</label></div>
+                <div id="contact-log-list" class="mt1"></div>
+                <button class="btn btn-ghost btn-sm mt2" onclick="openLogModal()" style="margin-top:.8rem;">+ Log interaction</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- APPLICATIONS -->
+    <div class="page" id="page-applications">
+      <div class="section-header">
+        <h2>Applications</h2>
+        <button class="btn btn-primary" onclick="openModal('application')">+ Add application</button>
+      </div>
+      <div class="tabs">
+        <div class="tab active" onclick="filterApps('all',this)">All</div>
+        <div class="tab" onclick="filterApps('Draft',this)">Draft</div>
+        <div class="tab" onclick="filterApps('Sent',this)">Sent</div>
+        <div class="tab" onclick="filterApps('Interview',this)">Interview</div>
+        <div class="tab" onclick="filterApps('Rejected',this)">Rejected</div>
+      </div>
+      <div class="card">
+        <table class="table">
+          <thead><tr><th>Role</th><th>Company</th><th>Status</th><th>Deadline</th><th>Follow-up</th><th>Contacts</th><th>Notes</th><th></th></tr></thead>
+          <tbody id="applications-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- COMPANY MODAL -->
+<div class="modal-overlay" id="modal-company">
+  <div class="modal">
+    <div class="modal-header"><h3 id="company-modal-title">Add company</h3><button class="modal-close" onclick="closeModal('company')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="company-edit-id">
+      <div class="field"><label>Company name</label><input id="c-name" placeholder="e.g. LEO Pharma"></div>
+      <div class="field-row">
+        <div class="field"><label>Industry</label><input id="c-industry" placeholder="e.g. Pharma"></div>
+        <div class="field"><label>Status</label><select id="c-status"><option>Prospect</option><option>Active</option><option>On hold</option><option>Closed</option></select></div>
+      </div>
+      <div class="field"><label>Open roles</label><input id="c-roles" placeholder="e.g. Chief of Staff"></div>
+      <div class="field"><label>Notes</label><textarea id="c-notes"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('company')">Cancel</button><button class="btn btn-primary" onclick="saveCompany()">Save</button></div>
+  </div>
+</div>
+
+<!-- CONTACT MODAL -->
+<div class="modal-overlay" id="modal-contact">
+  <div class="modal">
+    <div class="modal-header"><h3 id="contact-modal-title">Add contact</h3><button class="modal-close" onclick="closeModal('contact')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="contact-edit-id">
+      <div class="field-row">
+        <div class="field"><label>Full name</label><input id="ct-name"></div>
+        <div class="field"><label>Title</label><input id="ct-title"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Company</label><select id="ct-company"><option value="">— Select —</option></select></div>
+        <div class="field"><label>Relation</label><select id="ct-relation"><option>Peer</option><option>Leader above me</option><option>Recruiter</option><option>Network</option><option>Decision maker</option></select></div>
+      </div>
+      <div class="field"><label>Last contacted</label><input type="date" id="ct-lastcontact"></div>
+      <div class="field"><label>Outcome of last interaction</label><textarea id="ct-outcome"></textarea></div>
+      <div class="field-row">
+        <div class="field"><label>Next step</label><input id="ct-nextstep"></div>
+        <div class="field"><label>Due date</label><input type="date" id="ct-due"></div>
+      </div>
+      <div class="field"><label>Notes</label><textarea id="ct-notes"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('contact')">Cancel</button><button class="btn btn-primary" onclick="saveContact()">Save</button></div>
+  </div>
+</div>
+
+<!-- APPLICATION MODAL -->
+<div class="modal-overlay" id="modal-application">
+  <div class="modal">
+    <div class="modal-header"><h3 id="app-modal-title">Add application</h3><button class="modal-close" onclick="closeModal('application')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="app-edit-id">
+      <div class="field"><label>Role title</label><input id="a-role"></div>
+      <div class="field-row">
+        <div class="field"><label>Company</label><select id="a-company"><option value="">— Select —</option></select></div>
+        <div class="field"><label>Status</label><select id="a-status"><option>Draft</option><option>Sent</option><option>Interview</option><option>Offer</option><option>Rejected</option></select></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Deadline</label><input type="date" id="a-deadline"></div>
+        <div class="field"><label>Follow-up date</label><input type="date" id="a-followup"></div>
+      </div>
+      <div class="field"><label>Relevant contacts</label><input id="a-contacts"></div>
+      <div class="field"><label>Outcome</label><input id="a-outcome"></div>
+      <div class="field"><label>Notes</label><textarea id="a-notes"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('application')">Cancel</button><button class="btn btn-primary" onclick="saveApplication()">Save</button></div>
+  </div>
+</div>
+
+<!-- LOG MODAL -->
+<div class="modal-overlay" id="modal-log">
+  <div class="modal">
+    <div class="modal-header"><h3>Log interaction</h3><button class="modal-close" onclick="closeModal('log')">✕</button></div>
+    <div class="modal-body">
+      <div class="field-row">
+        <div class="field"><label>Date</label><input type="date" id="log-date"></div>
+        <div class="field"><label>Type</label><select id="log-type"><option>Phone call</option><option>Email</option><option>Coffee meeting</option><option>LinkedIn message</option><option>Video call</option><option>In-person</option></select></div>
+      </div>
+      <div class="field"><label>What happened / outcome</label><textarea id="log-outcome"></textarea></div>
+      <div class="field-row">
+        <div class="field"><label>Next step</label><input id="log-nextstep"></div>
+        <div class="field"><label>Due date</label><input type="date" id="log-due"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('log')">Cancel</button><button class="btn btn-primary" onclick="saveLog()">Save log</button></div>
+  </div>
+</div>
+
+<script>
+const DB_KEY = 'magnus_crm_v1';
+function loadDB() { try { return JSON.parse(localStorage.getItem(DB_KEY)) || null; } catch { return null; } }
+function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+const SEED = {
+  companies: [
+    { id:'c1', name:'LEO Pharma', industry:'Pharma', status:'Active', roles:'Chief of Staff', notes:'Applied CoS to CHRO Helle Hedegaard Juhl. Key contact Anne (family friend). Simone outgoing CoS. Ballerup.' },
+    { id:'c2', name:'Rockwool', industry:'Manufacturing', status:'Active', roles:'Head of Project Support', notes:'Applied. People leadership + PMO structure angle.' },
+    { id:'c3', name:'Abacus Medicine', industry:'Pharma', status:'Active', roles:'Portfolio & Value Lead', notes:'Applied. Portfolio governance. Good fit with PMO background.' },
+    { id:'c4', name:'Weibel', industry:'Defence / Tech', status:'Active', roles:'Supply Chain Director', notes:'Applied. Contact: Dorthe Gottwald Finne (VP Operations). Military background relevant.' },
+    { id:'c5', name:'Danske Bank', industry:'Finance', status:'Active', roles:'Head of P&BC Office', notes:'Applied. Contacts: Peter (Officersskolen), Christian Skovgaard Thorsen.' },
+    { id:'c6', name:'Bang & Olufsen', industry:'Consumer Electronics', status:'Prospect', roles:'Operations / People leadership', notes:'Dream employer. Passion for audio. Charlotte (VP) pending coffee. Also: Daniel, Grant Stevens-Bunner (Global Head of TA).' },
+    { id:'c7', name:'Coloplast', industry:'MedTech', status:'Closed', roles:'Head of QA Project Management', notes:'Auto-rejected despite network from Troels. Closed for now.' },
+    { id:'c8', name:'Novo Nordisk', industry:'Pharma', status:'On hold', roles:'—', notes:'Former employer 8 years. Made redundant late 2025. Keep network alive.' },
+  ],
+  contacts: [
+    { id:'ct1', name:'Anne', title:'VP People (family friend)', company:'LEO Pharma', companyId:'c1', relation:'Network', lastContact:'2026-04-02', outcome:'Facilitated intro to CHRO Helle Hedegaard Juhl. Application submitted.', nextStep:'Send thank you + check on timeline', due:'2026-04-10', notes:'Family friend. Key connector at LEO Pharma.', log:[{ date:'2026-04-02', type:'Phone call', outcome:'Anne confirmed Helle interest. Helped shape application angle.', nextStep:'Send thank you email', due:'2026-04-10' }] },
+    { id:'ct2', name:'Simone', title:'Chief of Staff (outgoing)', company:'LEO Pharma', companyId:'c1', relation:'Network', lastContact:'2026-04-03', outcome:'Brief exchange. Context on role expectations and team dynamics.', nextStep:'Follow up if invited to interview', due:'2026-04-20', notes:'Outgoing CoS at LEO Pharma — good insight into the role.', log:[] },
+    { id:'ct3', name:'Charlotte', title:'VP Project Execution', company:'Bang & Olufsen', companyId:'c6', relation:'Network', lastContact:'2026-03-20', outcome:'Applied for Senior PM — rejected. Sent coffee invitation. Awaiting response.', nextStep:'Follow up on coffee invitation', due:'2026-04-09', notes:'Pharma background. Warm contact. B&O dream employer.', log:[{ date:'2026-03-20', type:'LinkedIn message', outcome:'Coffee invitation after Senior PM rejection. Kept tone forward-looking.', nextStep:'Follow up if no response by Apr 9', due:'2026-04-09' }] },
+    { id:'ct4', name:'Dorthe Gottwald Finne', title:'VP Operations', company:'Weibel', companyId:'c4', relation:'Decision maker', lastContact:'2026-03-28', outcome:'Confirmed application received. Brief exchange on military background relevance.', nextStep:'Follow up on application status', due:'2026-04-12', notes:'Direct hiring manager at Weibel.', log:[] },
+    { id:'ct5', name:'Peter', title:'Former Officersskole teacher', company:'Danske Bank', companyId:'c5', relation:'Network', lastContact:'2026-03-15', outcome:'Warm reconnection. Offered to put in a good word internally.', nextStep:'Send update on application status', due:'2026-04-15', notes:'Former teacher at Officersskolen. Now at Danske Bank.', log:[] },
+    { id:'ct6', name:'Christian Skovgaard Thorsen', title:'Contact', company:'Danske Bank', companyId:'c5', relation:'Network', lastContact:'2026-03-10', outcome:'Good conversation. Digital Portfolio Steering too technical. Keeping warm for P&BC Office.', nextStep:'Reach out when P&BC Office progresses', due:'2026-04-20', notes:'Relevant for broader Danske Bank opportunities.', log:[] },
+    { id:'ct7', name:'Grant Stevens-Bunner', title:'Global Head of Talent Acquisition', company:'Bang & Olufsen', companyId:'c6', relation:'Network', lastContact:'', outcome:'', nextStep:'Reach out via Daniel — explore leadership openings', due:'2026-04-15', notes:'Key B&O contact. Access via Daniel.', log:[] },
+  ],
+  applications: [
+    { id:'a1', role:'Chief of Staff', company:'LEO Pharma', companyId:'c1', status:'Sent', deadline:'2026-04-15', followup:'2026-04-20', contacts:'Anne, Simone', outcome:'Application submitted early April 2026', notes:'Reporting to CHRO Helle Hedegaard Juhl. Global People & Corporate Affairs. CoS-adjacent experience + Armed Forces T&O Officer.' },
+    { id:'a2', role:'Head of Project Support', company:'Rockwool', companyId:'c2', status:'Sent', deadline:'2026-04-10', followup:'2026-04-17', contacts:'—', outcome:'Submitted. Awaiting response.', notes:'People leadership + PMO governance. Used Rockwool CV version (English).' },
+    { id:'a3', role:'Portfolio & Value Lead', company:'Abacus Medicine', companyId:'c3', status:'Sent', deadline:'2026-04-12', followup:'2026-04-19', contacts:'—', outcome:'Submitted. Awaiting response.', notes:'Portfolio governance. Used Abacus CV version.' },
+    { id:'a4', role:'Supply Chain Director', company:'Weibel', companyId:'c4', status:'Sent', deadline:'2026-04-08', followup:'2026-04-12', contacts:'Dorthe Gottwald Finne', outcome:'Submitted. Contact made with Dorthe.', notes:'Military background highly relevant. Used Weibel CV version.' },
+    { id:'a5', role:'Head of P&BC Office', company:'Danske Bank', companyId:'c5', status:'Sent', deadline:'2026-04-14', followup:'2026-04-18', contacts:'Peter, Christian Skovgaard Thorsen', outcome:'Submitted. Two warm contacts internally.', notes:'Portfolio governance + people leadership.' },
+    { id:'a6', role:'Head of QA Project Management', company:'Coloplast', companyId:'c7', status:'Rejected', deadline:'2026-03-20', followup:'', contacts:'Troels', outcome:'Auto-rejected despite network recommendation.', notes:'Keep Troels warm.' },
+  ]
+};
+
+let db = loadDB() || JSON.parse(JSON.stringify(SEED));
+let currentContactId = null;
+let appFilter = 'all';
+
+// NAV
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    item.classList.add('active');
+    const page = item.dataset.page;
+    document.getElementById('page-' + page).classList.add('active');
+    document.getElementById('page-title').textContent = item.textContent.trim();
+    closeDetail();
+    renderPage(page);
+    if (window.innerWidth < 768) document.getElementById('sidebar').classList.remove('open');
+  });
+});
+
+function renderPage(p) {
+  if (p==='dashboard') renderDashboard();
+  if (p==='companies') renderCompanies();
+  if (p==='contacts') renderContacts();
+  if (p==='applications') renderApplications();
+  updateStats();
+}
+
+function updateStats() {
+  document.getElementById('stat-apps').textContent = db.applications.filter(a=>a.status!=='Rejected').length;
+  document.getElementById('stat-interviews').textContent = db.applications.filter(a=>a.status==='Interview').length;
+  document.getElementById('stat-contacts').textContent = db.contacts.length;
+  document.getElementById('stat-companies').textContent = db.companies.filter(c=>c.status==='Active').length;
+}
+
+function formatDate(str) {
+  if (!str) return '—';
+  return new Date(str).toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+}
+
+// DASHBOARD
+function renderDashboard() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const in48 = new Date(today); in48.setDate(in48.getDate()+2);
+
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="stat-card"><div class="label">Active applications</div><div class="value">${db.applications.filter(a=>a.status!=='Rejected').length}</div><div class="sub">Across ${db.companies.filter(c=>c.status==='Active').length} target companies</div></div>
+    <div class="stat-card"><div class="label">Contacts in play</div><div class="value">${db.contacts.length}</div><div class="sub">${db.contacts.filter(c=>c.due && new Date(c.due)<=in48 && new Date(c.due)>=today).length} need action soon</div></div>
+    <div class="stat-card"><div class="label">Interviews</div><div class="value">${db.applications.filter(a=>a.status==='Interview').length}</div><div class="sub">Rejections: ${db.applications.filter(a=>a.status==='Rejected').length}</div></div>
+  `;
+
+  const items = [];
+  db.applications.forEach(a => {
+    if (a.deadline) { const d=new Date(a.deadline); if(d>=today&&d<=in48) items.push({label:`Deadline: ${a.role} @ ${a.company}`,sub:'',date:a.deadline,urgency:d<=today?'red':'amber'}); }
+    if (a.followup) { const d=new Date(a.followup); if(d>=today&&d<=in48) items.push({label:`Follow up on ${a.role} @ ${a.company}`,sub:a.outcome,date:a.followup,urgency:'amber'}); }
+  });
+  db.contacts.forEach(c => {
+    if (c.due) { const d=new Date(c.due); if(d>=today&&d<=in48) items.push({label:`${c.nextStep||'Action needed'} — ${c.name}`,sub:c.company,date:c.due,urgency:d<=today?'red':'amber'}); }
+  });
+  items.sort((a,b)=>new Date(a.date)-new Date(b.date));
+
+  const qEl = document.getElementById('queue-list');
+  qEl.innerHTML = items.length ? items.map(i=>`
+    <div class="queue-item">
+      <div class="queue-dot dot-${i.urgency}"></div>
+      <div class="queue-body">
+        <div class="q-title">${i.label}</div>
+        ${i.sub?`<div class="q-sub">${i.sub}</div>`:''}
+        <div class="q-date">${formatDate(i.date)}</div>
+      </div>
+    </div>`).join('') : '<div class="empty"><div class="empty-icon">✅</div><p>Nothing urgent in the next 48 hours</p></div>';
+
+  const colors = {Draft:'grey',Sent:'blue',Interview:'green',Offer:'purple',Rejected:'red'};
+  document.getElementById('pipeline-view').innerHTML = ['Draft','Sent','Interview','Offer','Rejected'].map(s=>{
+    const apps=db.applications.filter(a=>a.status===s);
+    return apps.length?`<div class="mt1"><span class="badge badge-${colors[s]}">${s} · ${apps.length}</span> ${apps.map(a=>`<span style="font-size:.8rem;color:var(--muted);margin-left:.5rem;">${a.company}</span>`).join('')}</div>`:'';
+  }).join('');
+
+  const sorted=[...db.contacts].sort((a,b)=>(b.lastContact||'')>(a.lastContact||'')?1:-1).slice(0,6);
+  document.getElementById('recent-contacts-body').innerHTML = sorted.map(c=>`
+    <tr>
+      <td><strong>${c.name}</strong></td>
+      <td>${c.company}</td>
+      <td>${c.lastContact?formatDate(c.lastContact):'—'}</td>
+      <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.nextStep||'—'}</td>
+      <td>${c.due?`<span style="color:var(--red);font-weight:500;">${formatDate(c.due)}</span>`:'—'}</td>
+    </tr>`).join('');
+}
+
+// COMPANIES
+function renderCompanies() {
+  const sc={Active:'green',Prospect:'blue','On hold':'amber',Closed:'grey'};
+  document.getElementById('companies-body').innerHTML = db.companies.map(c=>`
+    <tr>
+      <td><strong>${c.name}</strong></td>
+      <td>${c.industry}</td>
+      <td><span class="badge badge-${sc[c.status]||'grey'}">${c.status}</span></td>
+      <td>${db.contacts.filter(ct=>ct.companyId===c.id).length}</td>
+      <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.roles||'—'}</td>
+      <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);font-size:.8rem;">${c.notes||''}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="editCompany('${c.id}')">Edit</button></td>
+    </tr>`).join('');
+}
+
+// CONTACTS
+function renderContacts() {
+  const rc={'Peer':'blue','Leader above me':'purple','Recruiter':'amber','Network':'green','Decision maker':'red'};
+  document.getElementById('contacts-body').innerHTML = db.contacts.map(c=>`
+    <tr>
+      <td><a onclick="openContactDetail('${c.id}')">${c.name}</a></td>
+      <td style="color:var(--muted);font-size:.84rem;">${c.title}</td>
+      <td>${c.company}</td>
+      <td><span class="badge badge-${rc[c.relation]||'grey'}">${c.relation}</span></td>
+      <td>${c.lastContact?formatDate(c.lastContact):'—'}</td>
+      <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.nextStep||'—'}</td>
+      <td>${c.due?`<span style="color:var(--red);font-weight:500;">${formatDate(c.due)}</span>`:'—'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="editContact('${c.id}')">Edit</button></td>
+    </tr>`).join('');
+}
+
+function openContactDetail(id) {
+  currentContactId = id;
+  const c = db.contacts.find(x=>x.id===id);
+  document.getElementById('detail-contact-name').textContent = c.name;
+  document.getElementById('d-title').textContent = c.title||'—';
+  document.getElementById('d-company').textContent = c.company||'—';
+  document.getElementById('d-relation').innerHTML = `<span class="badge badge-blue">${c.relation}</span>`;
+  document.getElementById('d-nextstep').textContent = c.nextStep||'—';
+  document.getElementById('d-due').textContent = c.due?formatDate(c.due):'—';
+  renderLog(c);
+  document.getElementById('contact-detail').classList.add('open');
+}
+
+function renderLog(c) {
+  const log = c.log||[];
+  document.getElementById('contact-log-list').innerHTML = log.length ? [...log].reverse().map(l=>`
+    <div class="log-entry">
+      <div class="log-dot"></div>
+      <div>
+        <div class="log-date">${formatDate(l.date)} · ${l.type}</div>
+        <div class="log-text">${l.outcome}</div>
+        ${l.nextStep?`<div class="log-next">→ ${l.nextStep}${l.due?' by '+formatDate(l.due):''}</div>`:''}
+      </div>
+    </div>`).join('') : '<p style="color:var(--muted);font-size:.82rem;">No interactions logged yet.</p>';
+}
+
+function closeDetail() {
+  document.getElementById('contact-detail').classList.remove('open');
+  currentContactId = null;
+}
+
+// APPLICATIONS
+function renderApplications() {
+  const sc={Draft:'grey',Sent:'blue',Interview:'green',Offer:'purple',Rejected:'red'};
+  const filtered = appFilter==='all' ? db.applications : db.applications.filter(a=>a.status===appFilter);
+  document.getElementById('applications-body').innerHTML = filtered.map(a=>`
+    <tr>
+      <td><strong>${a.role}</strong></td>
+      <td>${a.company}</td>
+      <td><span class="badge badge-${sc[a.status]||'grey'}">${a.status}</span></td>
+      <td>${a.deadline?`<span style="color:var(--amber);font-weight:500;">${formatDate(a.deadline)}</span>`:'—'}</td>
+      <td>${a.followup?formatDate(a.followup):'—'}</td>
+      <td style="font-size:.8rem;color:var(--muted);">${a.contacts||'—'}</td>
+      <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.8rem;color:var(--muted);">${a.notes||''}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="editApplication('${a.id}')">Edit</button></td>
+    </tr>`).join('');
+}
+
+function filterApps(status, el) {
+  appFilter = status;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderApplications();
+}
+
+// MODALS
+function openModal(type) { populateSelects(); document.getElementById('modal-'+type).classList.add('open'); }
+function closeModal(type) { document.getElementById('modal-'+type).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('open'); }));
+
+function populateSelects() {
+  ['ct-company','a-company'].forEach(id=>{
+    const sel=document.getElementById(id); if(!sel)return;
+    const cur=sel.value;
+    sel.innerHTML='<option value="">— Select —</option>'+db.companies.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    sel.value=cur;
+  });
+}
+
+// SAVE COMPANY
+function saveCompany() {
+  const editId=document.getElementById('company-edit-id').value;
+  const obj={id:editId||newId(),name:document.getElementById('c-name').value.trim(),industry:document.getElementById('c-industry').value.trim(),status:document.getElementById('c-status').value,roles:document.getElementById('c-roles').value.trim(),notes:document.getElementById('c-notes').value.trim()};
+  if(!obj.name)return alert('Company name required');
+  if(editId){const i=db.companies.findIndex(c=>c.id===editId);db.companies[i]=obj;}else db.companies.push(obj);
+  saveDB();closeModal('company');document.getElementById('company-edit-id').value='';renderCompanies();updateStats();
+}
+function editCompany(id) {
+  const c=db.companies.find(x=>x.id===id);
+  document.getElementById('company-modal-title').textContent='Edit company';
+  document.getElementById('company-edit-id').value=c.id;
+  document.getElementById('c-name').value=c.name;
+  document.getElementById('c-industry').value=c.industry;
+  document.getElementById('c-status').value=c.status;
+  document.getElementById('c-roles').value=c.roles||'';
+  document.getElementById('c-notes').value=c.notes||'';
+  openModal('company');
+}
+
+// SAVE CONTACT
+function saveContact() {
+  const editId=document.getElementById('contact-edit-id').value;
+  const companyId=document.getElementById('ct-company').value;
+  const companyName=companyId?(db.companies.find(c=>c.id===companyId)||{}).name||'':'';
+  const obj={id:editId||newId(),name:document.getElementById('ct-name').value.trim(),title:document.getElementById('ct-title').value.trim(),company:companyName,companyId,relation:document.getElementById('ct-relation').value,lastContact:document.getElementById('ct-lastcontact').value,outcome:document.getElementById('ct-outcome').value.trim(),nextStep:document.getElementById('ct-nextstep').value.trim(),due:document.getElementById('ct-due').value,notes:document.getElementById('ct-notes').value.trim(),log:editId?(db.contacts.find(c=>c.id===editId)||{}).log||[]:[]};
+  if(!obj.name)return alert('Name required');
+  if(editId){const i=db.contacts.findIndex(c=>c.id===editId);db.contacts[i]=obj;}else db.contacts.push(obj);
+  saveDB();closeModal('contact');document.getElementById('contact-edit-id').value='';renderContacts();updateStats();
+}
+function editContact(id) {
+  const c=db.contacts.find(x=>x.id===id);
+  document.getElementById('contact-modal-title').textContent='Edit contact';
+  document.getElementById('contact-edit-id').value=c.id;
+  document.getElementById('ct-name').value=c.name;
+  document.getElementById('ct-title').value=c.title||'';
+  populateSelects();
+  document.getElementById('ct-company').value=c.companyId||'';
+  document.getElementById('ct-relation').value=c.relation;
+  document.getElementById('ct-lastcontact').value=c.lastContact||'';
+  document.getElementById('ct-outcome').value=c.outcome||'';
+  document.getElementById('ct-nextstep').value=c.nextStep||'';
+  document.getElementById('ct-due').value=c.due||'';
+  document.getElementById('ct-notes').value=c.notes||'';
+  openModal('contact');
+}
+
+// SAVE APPLICATION
+function saveApplication() {
+  const editId=document.getElementById('app-edit-id').value;
+  const companyId=document.getElementById('a-company').value;
+  const companyName=companyId?(db.companies.find(c=>c.id===companyId)||{}).name||'':'';
+  const obj={id:editId||newId(),role:document.getElementById('a-role').value.trim(),company:companyName,companyId,status:document.getElementById('a-status').value,deadline:document.getElementById('a-deadline').value,followup:document.getElementById('a-followup').value,contacts:document.getElementById('a-contacts').value.trim(),outcome:document.getElementById('a-outcome').value.trim(),notes:document.getElementById('a-notes').value.trim()};
+  if(!obj.role)return alert('Role required');
+  if(editId){const i=db.applications.findIndex(a=>a.id===editId);db.applications[i]=obj;}else db.applications.push(obj);
+  saveDB();closeModal('application');document.getElementById('app-edit-id').value='';renderApplications();updateStats();
+}
+function editApplication(id) {
+  const a=db.applications.find(x=>x.id===id);
+  document.getElementById('app-modal-title').textContent='Edit application';
+  document.getElementById('app-edit-id').value=a.id;
+  document.getElementById('a-role').value=a.role;
+  populateSelects();
+  document.getElementById('a-company').value=a.companyId||'';
+  document.getElementById('a-status').value=a.status;
+  document.getElementById('a-deadline').value=a.deadline||'';
+  document.getElementById('a-followup').value=a.followup||'';
+  document.getElementById('a-contacts').value=a.contacts||'';
+  document.getElementById('a-outcome').value=a.outcome||'';
+  document.getElementById('a-notes').value=a.notes||'';
+  openModal('application');
+}
+
+// LOG
+function openLogModal() {
+  document.getElementById('log-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('log-outcome').value='';
+  document.getElementById('log-nextstep').value='';
+  document.getElementById('log-due').value='';
+  openModal('log');
+}
+function saveLog() {
+  if(!currentContactId)return;
+  const entry={date:document.getElementById('log-date').value,type:document.getElementById('log-type').value,outcome:document.getElementById('log-outcome').value.trim(),nextStep:document.getElementById('log-nextstep').value.trim(),due:document.getElementById('log-due').value};
+  const c=db.contacts.find(x=>x.id===currentContactId);
+  c.log=c.log||[];c.log.push(entry);
+  if(entry.date)c.lastContact=entry.date;
+  if(entry.nextStep)c.nextStep=entry.nextStep;
+  if(entry.due)c.due=entry.due;
+  saveDB();closeModal('log');renderLog(c);
+}
+
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+// ─── IMPORT CONVERSATION ──────────────────────────────────────
+async function parseConversation() {
+  const text = document.getElementById('import-text').value.trim();
+  if (!text) return alert('Paste a conversation first');
+  const btn = document.getElementById('import-parse-btn');
+  btn.textContent = 'Parsing…'; btn.disabled = true;
+
+  const systemPrompt = `You are a CRM data extractor. Given a LinkedIn or email message thread, extract structured contact and interaction data.
+Respond ONLY with valid JSON in this exact format — no markdown, no explanation:
+{
+  "contact": {
+    "name": "Full name",
+    "title": "Job title",
+    "company": "Company name (infer from context if not explicit)",
+    "relation": "one of: Peer / Leader above me / Recruiter / Network / Decision maker",
+    "notes": "Brief context about this person"
+  },
+  "log": {
+    "type": "one of: LinkedIn message / Email / Phone call / Coffee meeting / Video call / In-person",
+    "outcome": "What happened — 1-3 sentences summarising the exchange",
+    "nextStep": "The clear next action to take",
+    "sentiment": "one of: warm / neutral / cold / interested"
+  }
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: `Extract CRM data from this conversation:\n\n${text}` }]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content?.[0]?.text || '';
+    const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    showImportPreview(parsed);
+  } catch(e) {
+    alert('Parsing failed — check the text and try again.\n\n' + e.message);
+  }
+  btn.textContent = 'Parse with AI'; btn.disabled = false;
+}
+
+function showImportPreview(parsed) {
+  const sc = {warm:'green',neutral:'grey',cold:'red',interested:'blue'}[parsed.log?.sentiment]||'grey';
+  const safeJson = encodeURIComponent(JSON.stringify(parsed));
+  document.getElementById('import-preview').innerHTML = `
+    <div style="background:var(--faint);border-radius:8px;padding:1rem;margin-bottom:.8rem;">
+      <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;">Extracted contact</div>
+      <div style="font-weight:600;font-size:.95rem;">${parsed.contact.name}</div>
+      <div style="font-size:.82rem;color:var(--muted);margin-top:.2rem;">${parsed.contact.title} · ${parsed.contact.company}</div>
+      <div style="margin-top:.5rem;"><span class="badge badge-blue">${parsed.contact.relation}</span></div>
+    </div>
+    <div style="background:var(--faint);border-radius:8px;padding:1rem;margin-bottom:1rem;">
+      <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;">Interaction log</div>
+      <div style="font-size:.84rem;margin-bottom:.4rem;"><strong>${parsed.log.type}</strong> <span class="badge badge-${sc}" style="margin-left:.4rem;">${parsed.log.sentiment}</span></div>
+      <div style="font-size:.84rem;margin-bottom:.4rem;color:var(--text);">${parsed.log.outcome}</div>
+      <div style="font-size:.84rem;color:var(--amber);"><strong>Next step:</strong> ${parsed.log.nextStep}</div>
+    </div>
+    <div style="display:flex;gap:.5rem;">
+      <button class="btn btn-primary" onclick="confirmImport(decodeURIComponent('${safeJson}'))">✓ Save to CRM</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('import-preview').innerHTML=''">Try again</button>
+    </div>`;
+}
+
+function confirmImport(jsonStr) {
+  const parsed = JSON.parse(jsonStr);
+  const today = new Date().toISOString().split('T')[0];
+
+  let company = db.companies.find(c => c.name.toLowerCase() === (parsed.contact.company||'').toLowerCase());
+  if (!company) {
+    company = { id:newId(), name:parsed.contact.company, industry:'—', status:'Prospect', roles:'', notes:'Added via conversation import.' };
+    db.companies.push(company);
+  }
+
+  let contact = db.contacts.find(c => c.name.toLowerCase() === parsed.contact.name.toLowerCase());
+  const logEntry = { date:today, type:parsed.log.type, outcome:parsed.log.outcome, nextStep:parsed.log.nextStep, due:'' };
+
+  if (contact) {
+    contact.log = contact.log||[]; contact.log.push(logEntry);
+    contact.lastContact = today; contact.nextStep = parsed.log.nextStep; contact.outcome = parsed.log.outcome;
+  } else {
+    contact = { id:newId(), name:parsed.contact.name, title:parsed.contact.title, company:company.name, companyId:company.id, relation:parsed.contact.relation, lastContact:today, outcome:parsed.log.outcome, nextStep:parsed.log.nextStep, due:'', notes:parsed.contact.notes||'', log:[logEntry] };
+    db.contacts.push(contact);
+  }
+
+  saveDB(); closeModal('import');
+  document.getElementById('import-text').value='';
+  document.getElementById('import-preview').innerHTML='';
+
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelector('[data-page="contacts"]').classList.add('active');
+  document.getElementById('page-contacts').classList.add('active');
+  document.getElementById('page-title').textContent='👤 Contacts';
+  renderContacts(); updateStats();
+
+  setTimeout(()=>{
+    const row=[...document.querySelectorAll('#contacts-body tr')].find(r=>r.textContent.includes(contact.name));
+    if(row){row.style.background='#d8f3dc';setTimeout(()=>row.style.background='',2500);}
+  },100);
+}
+
+// INIT
+renderDashboard();
+updateStats();
+</script>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="modal-import">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📥 Import conversation</h3>
+      <button class="modal-close" onclick="closeModal('import')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Paste LinkedIn message, email thread or similar</label>
+        <textarea id="import-text" style="min-height:140px;" placeholder="Maria Rosenørn Lasaki Head of Business Support…&#10;&#10;Paste the full conversation here — name, title, and the message thread."></textarea>
+      </div>
+      <button class="btn btn-primary" id="import-parse-btn" onclick="parseConversation()" style="width:100%;">Parse with AI</button>
+      <div id="import-preview"></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
