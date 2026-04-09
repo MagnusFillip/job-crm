@@ -74,7 +74,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 .stat-card .sub { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
 
 /* TABLE */
-.table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.table { border-collapse: collapse; table-layout: fixed; min-width: 100%; }
 .table th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 500; padding: .6rem 1rem; border-bottom: 1px solid var(--border); position: relative; overflow: hidden; white-space: nowrap; }
 .table td { padding: .75rem 1rem; border-bottom: 1px solid var(--faint); vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .table tr:last-child td { border-bottom: none; }
@@ -85,8 +85,8 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 /* RESIZER */
 .resizer { position: absolute; right: 0; top: 0; height: 100%; width: 6px; cursor: col-resize; user-select: none; z-index: 1; }
 .resizer:hover, .resizer.active { background: var(--border); }
-.table-wrap { overflow-x: visible; min-width: max-content; width: 100%; }
-.card.table-card { overflow-x: auto; width: 100%; }
+.table-wrap { overflow-x: auto; width: 100%; }
+.card.table-card { width: 100%; }
 
 /* MATCH BAROMETER */
 .bar-wrap { width: 64px; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; display: inline-block; vertical-align: middle; }
