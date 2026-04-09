@@ -38,7 +38,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
 .topbar { height: 56px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; position: sticky; top: 0; z-index: 50; }
 .topbar-title { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; }
-.content { padding: 2rem; flex: 1; max-width: 1100px; }
+.content { padding: 2rem; flex: 1; }
 
 /* BUTTONS */
 .btn { font-family: 'Epilogue', sans-serif; font-size: .8rem; font-weight: 500; padding: .45rem 1rem; border-radius: 6px; border: none; cursor: pointer; transition: all .15s; }
@@ -87,6 +87,29 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 .resizer:hover, .resizer.active { background: var(--border); }
 .table-wrap { overflow-x: auto; width: 100%; }
 .card.table-card { width: 100%; }
+
+/* Sticky scrollbar — always visible at bottom of viewport */
+.table-wrap {
+  overflow-x: auto;
+  width: 100%;
+}
+.table-wrap::-webkit-scrollbar { height: 8px; }
+.table-wrap::-webkit-scrollbar-track { background: var(--faint); border-radius: 4px; }
+.table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.table-wrap::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* Sticky horizontal scrollbar at bottom of screen */
+.scroll-sentinel {
+  position: sticky;
+  bottom: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 10;
+}
+.scroll-sentinel-inner { height: 1px; }
 
 /* MATCH BAROMETER */
 .bar-wrap { width: 64px; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; display: inline-block; vertical-align: middle; }
@@ -247,10 +270,11 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
         </div>
       </div>
       <div class="card table-card">
-        <div class="table-wrap"><table class="table" id="tbl-companies">
+        <div class="table-wrap" id="wrap-companies"><table class="table" id="tbl-companies">
           <thead><tr><th>Company</th><th>Industry</th><th>Status</th><th>Contacts</th><th>Applied</th><th>Open roles</th><th>Notes</th><th></th></tr></thead>
           <tbody id="companies-body"></tbody>
         </table></div>
+        <div class="scroll-sentinel" id="sent-companies"><div class="scroll-sentinel-inner" id="sent-inner-companies"></div></div>
       </div>
 
       <!-- COMPANY DETAIL -->
@@ -297,10 +321,11 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
         <button class="btn btn-primary" onclick="openModal('contact')">+ Add contact</button>
       </div>
       <div class="card table-card">
-        <div class="table-wrap"><table class="table" id="tbl-contacts">
+        <div class="table-wrap" id="wrap-contacts"><table class="table" id="tbl-contacts">
           <thead><tr><th>Name</th><th>Title</th><th>Company</th><th>Relation</th><th>Status</th><th>Last contact</th><th>Next step</th><th>Due</th><th></th></tr></thead>
           <tbody id="contacts-body"></tbody>
         </table></div>
+        <div class="scroll-sentinel" id="sent-contacts"><div class="scroll-sentinel-inner" id="sent-inner-contacts"></div></div>
       </div>
       <div class="detail-panel mt3" id="contact-detail">
         <div class="card">
@@ -363,10 +388,11 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
         <div class="tab" onclick="filterApps('Rejected',this)">Rejected</div>
       </div>
       <div class="card table-card">
-        <div class="table-wrap"><table class="table" id="tbl-applications">
+        <div class="table-wrap" id="wrap-applications"><table class="table" id="tbl-applications">
           <thead><tr><th>Role</th><th>Company</th><th>Status</th><th>Match</th><th>Deadline</th><th>Follow-up</th><th>Contacts</th><th>Notes</th><th></th></tr></thead>
           <tbody id="applications-body"></tbody>
         </table></div>
+        <div class="scroll-sentinel" id="sent-applications"><div class="scroll-sentinel-inner" id="sent-inner-applications"></div></div>
       </div>
 
       <!-- APPLICATION DETAIL -->
@@ -1753,13 +1779,44 @@ function makeResizable(tableId) {
   });
 }
 
-// Init resizers after each render
+// ─── STICKY SCROLLBAR SYNC ───────────────────────────────────
+function setupSentinel(wrapId, sentinelId, innerInnerId) {
+  const wrap = document.getElementById(wrapId);
+  const sentinel = document.getElementById(sentinelId);
+  const inner = document.getElementById(innerInnerId);
+  if (!wrap || !sentinel || !inner) return;
+
+  // Match sentinel width to table scroll width
+  function syncWidth() {
+    inner.style.width = wrap.scrollWidth + 'px';
+  }
+  syncWidth();
+  new ResizeObserver(syncWidth).observe(wrap);
+
+  // Sync scrolling both ways
+  sentinel.addEventListener('scroll', () => { wrap.scrollLeft = sentinel.scrollLeft; });
+  wrap.addEventListener('scroll', () => { sentinel.scrollLeft = wrap.scrollLeft; });
+}
+
+// Called after each render
 const _origRenderCompanies = renderCompanies;
-renderCompanies = function() { _origRenderCompanies(); makeResizable('tbl-companies'); };
+renderCompanies = function() {
+  _origRenderCompanies();
+  makeResizable('tbl-companies');
+  setupSentinel('wrap-companies','sent-companies','sent-inner-companies');
+};
 const _origRenderContacts = renderContacts;
-renderContacts = function() { _origRenderContacts(); makeResizable('tbl-contacts'); };
+renderContacts = function() {
+  _origRenderContacts();
+  makeResizable('tbl-contacts');
+  setupSentinel('wrap-contacts','sent-contacts','sent-inner-contacts');
+};
 const _origRenderApplications = renderApplications;
-renderApplications = function() { _origRenderApplications(); makeResizable('tbl-applications'); };
+renderApplications = function() {
+  _origRenderApplications();
+  makeResizable('tbl-applications');
+  setupSentinel('wrap-applications','sent-applications','sent-inner-applications');
+};
 
 // INIT — only load seed if no existing data
 if (!loadDB()) {
