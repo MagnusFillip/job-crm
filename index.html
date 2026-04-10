@@ -198,6 +198,11 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 /* API KEY BANNER */
 .api-banner { background: var(--amber-light); border-bottom: 1px solid #f4c88a; padding: .6rem 2rem; font-size: .82rem; color: var(--amber); display: flex; align-items: center; justify-content: space-between; }
 .api-banner a { color: var(--amber); font-weight: 600; cursor: pointer; text-decoration: underline; }
+
+/* MOTIVATION STARS */
+.star-btn { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--border); padding: 0 .1rem; transition: color .1s; line-height: 1; }
+.star-btn.active { color: #e8c547; }
+.star-btn:hover { color: #e8c547; }
 </style>
 </head>
 <body>
@@ -426,7 +431,9 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
         </select>
         <button class="btn btn-ghost btn-sm" onclick="clearAppFilters()">Clear</button>
       </div>
-          <thead><tr><th>Role</th><th>Company</th><th>Status</th><th>Match</th><th>Deadline</th><th>Follow-up</th><th>Contacts</th><th>Notes</th><th></th></tr></thead>
+      <div class="card table-card">
+        <div class="table-wrap" id="wrap-applications"><table class="table" id="tbl-applications">
+          <thead><tr><th>Role</th><th>Company</th><th>Status</th><th>Match</th><th>Motivation</th><th class="score-col" style="display:none;">Score</th><th>Deadline</th><th>Follow-up</th><th>Contacts</th><th>Notes</th><th></th></tr></thead>
           <tbody id="applications-body"></tbody>
         </table></div>
         <div class="scroll-sentinel" id="sent-applications"><div class="scroll-sentinel-inner" id="sent-inner-applications"></div></div>
@@ -482,13 +489,42 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
     <!-- SETTINGS -->
     <div class="page" id="page-settings">
       <div class="section-header"><h2>Settings</h2></div>
+
+      <!-- PROFILE CARD — full width -->
+      <div class="card" style="margin-bottom:1rem;">
+        <div class="card-header">
+          <h2>👤 Min profil — bruges af AI til jobanalyse</h2>
+          <div style="display:flex;gap:.5rem;">
+            <button class="btn btn-ghost btn-sm" onclick="generateProfileUpdatePrompt()">📋 Generér opdateringsprompt</button>
+            <button class="btn btn-primary btn-sm" onclick="saveProfile()">Gem profil</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <p style="font-size:.82rem;color:var(--muted);margin-bottom:.8rem;line-height:1.5;">
+            Denne profil bruges direkte når AI analyserer jobopslag. Klik <strong>"Generér opdateringsprompt"</strong> for at få en prompt du kan paste i Claude-chatten — Claude opdaterer profilen baseret på nye samtaler og returnerer den opdaterede tekst, som du paster herind.
+          </p>
+          <textarea id="settings-profile" style="font-family:'Epilogue',sans-serif;font-size:.82rem;width:100%;min-height:420px;padding:.8rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);line-height:1.6;resize:vertical;"></textarea>
+          <div id="profile-save-status" style="font-size:.8rem;margin-top:.5rem;color:var(--muted);"></div>
+        </div>
+      </div>
+
+      <!-- PROMPT OUTPUT -->
+      <div id="profile-prompt-box" style="display:none;" class="card" style="margin-bottom:1rem;">
+        <div class="card-header"><h2>📋 Prompt til Claude</h2></div>
+        <div class="card-body">
+          <p style="font-size:.82rem;color:var(--muted);margin-bottom:.6rem;">Kopiér denne prompt og paste den i Claude-chatten. Claude returnerer en opdateret profiltekst — paste den herover og klik "Gem profil".</p>
+          <textarea id="profile-prompt-text" style="font-family:monospace;font-size:.78rem;width:100%;min-height:160px;padding:.7rem;border:1px solid var(--border);border-radius:6px;background:var(--faint);resize:vertical;" onclick="this.select();" readonly></textarea>
+          <button class="btn btn-ghost btn-sm" onclick="copyProfilePrompt()" style="margin-top:.5rem;">📋 Kopiér</button>
+        </div>
+      </div>
+
       <div class="grid-2">
         <div class="card">
           <div class="card-header"><h2>🔑 Anthropic API Key</h2></div>
           <div class="card-body">
             <p style="font-size:.84rem;color:var(--muted);margin-bottom:1rem;line-height:1.6;">
-              Din nøgle gemmes <strong>kun i din browser</strong> — aldrig på GitHub. Den aktiverer job scan, posting-analyse og samtaleimport direkte i CRM'en.<br><br>
-              Hent gratis nøgle: <a href="https://console.anthropic.com" target="_blank" style="color:var(--blue);">console.anthropic.com</a> → API Keys → Create Key.
+              Din nøgle gemmes <strong>kun i din browser</strong> — aldrig på GitHub.<br>
+              Hent nøgle: <a href="https://console.anthropic.com" target="_blank" style="color:var(--blue);">console.anthropic.com</a> → API Keys → Create Key.
             </p>
             <div class="field">
               <label>API Key</label>
@@ -509,7 +545,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
           <div class="card-header"><h2>📊 Data</h2></div>
           <div class="card-body">
             <p style="font-size:.84rem;color:var(--muted);margin-bottom:1rem;line-height:1.6;">
-              Al CRM-data gemmes i din browsers localStorage. Eksporter som backup eller for at synkronisere til en anden enhed.
+              Al CRM-data gemmes i din browsers localStorage. Eksporter som backup eller synkroniser til en anden enhed.
             </p>
             <div style="display:flex;flex-direction:column;gap:.5rem;">
               <button class="btn btn-ghost" onclick="exportData()">⬇️ Export data (JSON)</button>
@@ -593,7 +629,21 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
       </div>
       <div class="field"><label>Relevant contacts</label><input id="a-contacts"></div>
       <div class="field"><label>Outcome</label><input id="a-outcome"></div>
-      <div class="field"><label>Notes</label><textarea id="a-notes"></textarea></div>
+      <div class="field-row">
+        <div class="field"><label>Notes</label><textarea id="a-notes"></textarea></div>
+        <div class="field">
+          <label>Min motivation (1–5)</label>
+          <div style="display:flex;gap:.5rem;margin-top:.3rem;" id="motivation-stars">
+            <button type="button" class="star-btn" data-val="1" onclick="setMotivation(1)">★</button>
+            <button type="button" class="star-btn" data-val="2" onclick="setMotivation(2)">★</button>
+            <button type="button" class="star-btn" data-val="3" onclick="setMotivation(3)">★</button>
+            <button type="button" class="star-btn" data-val="4" onclick="setMotivation(4)">★</button>
+            <button type="button" class="star-btn" data-val="5" onclick="setMotivation(5)">★</button>
+          </div>
+          <div id="motivation-label" style="font-size:.75rem;color:var(--muted);margin-top:.3rem;">Ikke sat</div>
+          <input type="hidden" id="a-motivation" value="">
+        </div>
+      </div>
       <div class="field">
         <label>Job posting (paste full text)</label>
         <textarea id="a-posting" style="min-height:120px;" placeholder="Paste the full job description here…"></textarea>
@@ -755,7 +805,10 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.getElementById('page-' + page).classList.add('active');
     document.getElementById('page-title').textContent = item.textContent.trim();
     closeDetail();
+    closeAppDetail();
+    closeCompanyDetail();
     renderPage(page);
+    if (page === 'settings') loadProfileIntoEditor();
     if (window.innerWidth < 768) document.getElementById('sidebar').classList.remove('open');
   });
 });
@@ -1244,46 +1297,87 @@ function renderApplications() {
   const search = (document.getElementById('filter-apps-search')?.value||'').toLowerCase();
   const sort = document.getElementById('filter-apps-sort')?.value||'company';
   const sc={Wishlist:'purple',Draft:'grey',Sent:'blue',Interview:'green',Offer:'green',Rejected:'red'};
+  const isWishlist = appFilter === 'Wishlist';
+
+  // Show/hide Score column only on Wishlist
+  document.querySelectorAll('.score-col').forEach(el => el.style.display = isWishlist ? '' : 'none');
 
   let filtered = appFilter==='all' ? db.applications : db.applications.filter(a=>a.status===appFilter);
   if (search) filtered = filtered.filter(a => a.role.toLowerCase().includes(search) || a.company.toLowerCase().includes(search));
 
-  filtered = [...filtered].sort((a,b) => {
-    if (sort === 'deadline') {
-      const da = a.deadline ? new Date(a.deadline) : new Date('9999');
-      const db2 = b.deadline ? new Date(b.deadline) : new Date('9999');
-      return da - db2;
-    }
-    if (sort === 'followup') {
-      const da = a.followup ? new Date(a.followup) : new Date('9999');
-      const db2 = b.followup ? new Date(b.followup) : new Date('9999');
-      return da - db2;
-    }
-    if (sort === 'match') return (parseInt(b.matchScore)||0) - (parseInt(a.matchScore)||0);
-    return (a[sort]||'').localeCompare(b[sort]||'');
-  });
+  // On Wishlist: always sort by composite score desc
+  if (isWishlist) {
+    filtered = [...filtered].sort((a,b) => (compositeScore(b)||0) - (compositeScore(a)||0));
+  } else {
+    filtered = [...filtered].sort((a,b) => {
+      if (sort === 'deadline') { const da=a.deadline?new Date(a.deadline):new Date('9999'); const db2=b.deadline?new Date(b.deadline):new Date('9999'); return da-db2; }
+      if (sort === 'followup') { const da=a.followup?new Date(a.followup):new Date('9999'); const db2=b.followup?new Date(b.followup):new Date('9999'); return da-db2; }
+      if (sort === 'match') return (parseInt(b.matchScore)||0)-(parseInt(a.matchScore)||0);
+      return (a[sort]||'').localeCompare(b[sort]||'');
+    });
+  }
 
-  document.getElementById('applications-body').innerHTML = filtered.map(a=>{
+  document.getElementById('applications-body').innerHTML = filtered.map((a, idx)=>{
     const score = a.matchScore ? parseInt(a.matchScore) : null;
     const barColor = score ? (score>=75?'#2d6a4f':score>=55?'#b5621a':'#9b2226') : null;
     const scoreHtml = score
-      ? `<div style="display:flex;align-items:center;gap:.4rem;">
-           <div class="bar-wrap"><div class="bar-fill" style="width:${score}%;background:${barColor};"></div></div>
-           <span style="font-size:.75rem;font-weight:600;color:${barColor};">${score}%</span>
-         </div>`
+      ? `<div style="display:flex;align-items:center;gap:.4rem;"><div class="bar-wrap"><div class="bar-fill" style="width:${score}%;background:${barColor};"></div></div><span style="font-size:.75rem;font-weight:600;color:${barColor};">${score}%</span></div>`
       : '<span style="color:var(--muted);font-size:.8rem;">—</span>';
+
+    const mot = parseInt(a.motivation)||0;
+    const motHtml = mot
+      ? `<span style="color:#e8c547;letter-spacing:-.1rem;">${'★'.repeat(mot)}${'☆'.repeat(5-mot)}</span>`
+      : '<span style="color:var(--border);">☆☆☆☆☆</span>';
+
+    const cs = compositeScore(a);
+    const csColor = cs ? (cs>=75?'#2d6a4f':cs>=55?'#b5621a':'#9b2226') : 'var(--muted)';
+    const csHtml = cs
+      ? `<div style="display:flex;align-items:center;gap:.3rem;"><span style="font-family:'Syne',sans-serif;font-size:.9rem;font-weight:800;color:${csColor};">${cs}</span><span style="font-size:.7rem;color:var(--muted);">/100</span></div>`
+      : '—';
+
+    const rankBadge = isWishlist && cs
+      ? `<span style="background:var(--faint);border:1px solid var(--border);border-radius:2rem;font-size:.7rem;padding:.1rem .5rem;margin-right:.4rem;color:var(--muted);font-weight:600;">#${idx+1}</span>`
+      : '';
+
     return `<tr>
-      <td><strong><a onclick="openAppDetail('${a.id}')" style="cursor:pointer;">${a.role}</a></strong></td>
+      <td><strong>${rankBadge}<a onclick="openAppDetail('${a.id}')" style="cursor:pointer;">${a.role}</a></strong></td>
       <td>${a.company}</td>
       <td><span class="badge badge-${sc[a.status]||'grey'}">${a.status}</span></td>
       <td>${scoreHtml}</td>
+      <td>${motHtml}</td>
+      <td class="score-col" style="display:${isWishlist?'':'none'};">${csHtml}</td>
       <td>${a.deadline?`<span style="color:var(--amber);font-weight:500;">${formatDate(a.deadline)}</span>`:'—'}</td>
       <td>${a.followup?formatDate(a.followup):'—'}</td>
       <td style="font-size:.8rem;color:var(--muted);">${a.contacts||'—'}</td>
       <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.8rem;color:var(--muted);">${a.notes||''}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="editApplication('${a.id}')">Edit</button></td>
     </tr>`;
-  }).join('')||'<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">No applications</td></tr>';
+  }).join('')||'<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem;">No applications</td></tr>';
+}
+
+
+// ─── MOTIVATION STARS ────────────────────────────────────────
+const MOTIVATION_LABELS = ['','Lav interesse','Måske relevant','Interessant','Stærk kandidat','Drømmestilling'];
+
+function setMotivation(val) {
+  document.getElementById('a-motivation').value = val || '';
+  const label = document.getElementById('motivation-label');
+  if (label) label.textContent = val ? `${val}/5 — ${MOTIVATION_LABELS[val]}` : 'Ikke sat';
+  document.querySelectorAll('.star-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.val) <= val);
+  });
+}
+
+// ─── COMPOSITE SCORE ─────────────────────────────────────────
+// Match 60% + Motivation 40% (motivation 1-5 → 20-100)
+function compositeScore(a) {
+  const match = parseInt(a.matchScore) || 0;
+  const mot = parseInt(a.motivation) || 0;
+  const motNorm = mot > 0 ? (mot / 5) * 100 : 0;
+  if (!match && !mot) return null;
+  if (!match) return Math.round(motNorm * 0.4);
+  if (!mot) return Math.round(match * 0.6);
+  return Math.round(match * 0.6 + motNorm * 0.4);
 }
 
 function filterApps(status, el) {
@@ -1395,12 +1489,14 @@ function saveApplication() {
     contacts:document.getElementById('a-contacts').value.trim(),
     outcome:document.getElementById('a-outcome').value.trim(),
     notes:document.getElementById('a-notes').value.trim(),
+    motivation:document.getElementById('a-motivation').value,
     posting:document.getElementById('a-posting').value.trim(),
     requirements:document.getElementById('a-requirements').value,
     matchScore:document.getElementById('a-match-score').value,
     matchStrengths:document.getElementById('a-match-strengths').value,
     matchGaps:document.getElementById('a-match-gaps').value,
     matchAngle:document.getElementById('a-match-angle').value,
+    appLog: editId ? (db.applications.find(a=>a.id===editId)||{}).appLog||[] : [],
   };
   if(!obj.role)return alert('Role required');
   if(editId){const i=db.applications.findIndex(a=>a.id===editId);db.applications[i]=obj;}else db.applications.push(obj);
@@ -1411,6 +1507,7 @@ function saveApplication() {
   document.getElementById('a-match-strengths').value='';
   document.getElementById('a-match-gaps').value='';
   document.getElementById('a-match-angle').value='';
+  setMotivation(0);
   renderApplications();updateStats();
 }
 function editApplication(id) {
@@ -1432,7 +1529,7 @@ function editApplication(id) {
   document.getElementById('a-match-strengths').value=a.matchStrengths||'';
   document.getElementById('a-match-gaps').value=a.matchGaps||'';
   document.getElementById('a-match-angle').value=a.matchAngle||'';
-  // Show existing analysis if present
+  setMotivation(parseInt(a.motivation)||0);
   if (a.matchScore) showAnalysisPreview(a.matchScore, a.matchStrengths, a.matchGaps, a.matchAngle, a.requirements);
   else document.getElementById('a-analysis-preview').style.display='none';
   openModal('application');
@@ -1478,10 +1575,27 @@ function openAppDetail(id) {
     const col = score>=75?'var(--green)':score>=55?'var(--amber)':'var(--red)';
     const strengths = JSON.parse(a.matchStrengths||'[]');
     const gaps = JSON.parse(a.matchGaps||'[]');
+    // Try to get stored dimensions
+    const dimsRaw = document.getElementById('a-match-strengths')?.dataset?.dims || '{}';
+    const dimLabels = {kompetencematch:'Kompetencematch',seniority:'Seniority',faglighed:'Faglighed',personligtMatch:'Personligt match',privatlivGeografi:'Privatliv & geografi'};
+    let dims = {};
+    try { dims = JSON.parse(dimsRaw); } catch(e) {}
+    const dimHtml = Object.keys(dimLabels).filter(k=>dims[k]).map(k=>{
+      const v=dims[k]; const c=v>=75?'#2d6a4f':v>=55?'#b5621a':'#9b2226';
+      return `<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.25rem;">
+        <div style="font-size:.75rem;width:130px;flex-shrink:0;">${dimLabels[k]}</div>
+        <div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;"><div style="width:${v}%;height:100%;background:${c};border-radius:3px;"></div></div>
+        <span style="font-size:.72rem;font-weight:600;color:${c};width:24px;text-align:right;">${v}</span>
+      </div>`;
+    }).join('');
     document.getElementById('d-app-match-summary').innerHTML = `
-      <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:${col};margin-bottom:.4rem;">${score}% match</div>
-      ${strengths.length?`<div style="font-size:.8rem;margin-bottom:.3rem;"><strong style="color:var(--green);">✅ Strengths:</strong> ${strengths.join(' · ')}</div>`:''}
-      ${gaps.length?`<div style="font-size:.8rem;"><strong style="color:var(--amber);">⚠️ Gaps:</strong> ${gaps.join(' · ')}</div>`:''}
+      <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.6rem;">
+        <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:${col};">${score}%</div>
+        <div style="font-size:.78rem;color:var(--muted);">sandsynlighed for at lande stillingen</div>
+      </div>
+      ${dimHtml}
+      ${strengths.length?`<div style="font-size:.8rem;margin-top:.4rem;"><strong style="color:var(--green);">✅ Styrker:</strong> ${strengths.join(' · ')}</div>`:''}
+      ${gaps.length?`<div style="font-size:.8rem;margin-top:.2rem;"><strong style="color:var(--amber);">⚠️ Gab:</strong> ${gaps.join(' · ')}</div>`:''}
       ${a.matchAngle?`<div style="font-size:.8rem;margin-top:.4rem;color:var(--blue);">💡 ${a.matchAngle}</div>`:''}`;
     document.getElementById('d-app-match-block').style.display='block';
   } else {
@@ -1568,12 +1682,112 @@ function saveAppLog() {
   renderAppLog(a);
   suggestNextAction(a);
 }
-const MAGNUS_PROFILE = `Magnus Fillip Pedersen. Experienced leader with 10+ years from Novo Nordisk (8 years) and the Danish Armed Forces.
-Key roles: Manager PMO & Training Academy (Novo Nordisk), Training & Intelligence Officer (Den Kongelige Livgarde), Platoon Leader.
-Core strengths: People leadership, PMO governance, capability building, change management, learning & development, cross-functional collaboration, psychological safety, structure that outlasts him.
-Key metrics: Led 10 PMs, trained 40 local PMs, 11 global sites, 30-50% deviation reduction, >50% time-to-perform improvement, 210M pen fills (+24% OEE), DKK 10M savings, 2000+ soldiers trained.
-Education: Master in International Security and Law (SDU), Bachelor in Land Military Operations (Royal Danish Military Academy).
-Target: Roles at the intersection of people leadership, L&D, OD, and PMO/portfolio governance. Salary ~75,000 DKK/month. Hybrid 2-3 days office.`;
+const PROFILE_STORAGE = 'magnus_crm_profile';
+
+const DEFAULT_PROFILE = `KANDIDAT: Magnus Fillip Pedersen, dansk, 36 år. Bor i Kgs. Lyngby med partner Iben og tre børn (søn Winston + tvillingedøtre). Planlægger flytning til Solrød Strand (1. prioritet) eller Espergærde (2. prioritet).
+
+KARRIERE:
+- Novo Nordisk (2017–2025, ~8 år): Manager PMO & Training Academy (2022–2025), Aseptic Manufacturing Manager (2020–2022), Project Manager / Procurement Manager (2017–2020). Fritstillet sen 2025 pga. nedskæringer.
+- Forsvaret (2008–2017, ~9 år): Training & Intelligence Officer / Training & Operations Officer, Den Kongelige Livgarde (2015–2017) — nærmeste reference til Chief of Staff: sad i VP's ledergruppe, kørte ugentlige tavlemøder, eskalerede direkte til CVP med løsningsforslag. Platoonleder (2014–2015). Menig og sergent (2008–2014).
+- Uddannelse: Master i International Sikkerhed og Ret, SDU. Bachelor i Landmilitære Operationer, Kongelige Danske Militærakademi — udnævnt til bedste løjtnant og bedste taktiker på årgangen.
+
+KERNEKOMPETENCER (stærke):
+- Menneskeledelse som spillende træner: høj psykologisk tryghed, lav sygefravær, stærk fastholdelse
+- PMO-governance og porteføljestyring: struktur og standarder der fungerer uden ham
+- Capability building og L&D: trænet 40+ lokale PM'er, bygget Training Academy fra bunden
+- Bro mellem strategi og virkelighed: troværdighed på både shopfloor og direktionsniveau
+- Change management og organisationsudvikling i komplekse internationale miljøer
+- Procesforbedring og operationel excellence (Lean-erfaring)
+
+NØGLETAL: 10 PM'er ledet direkte, 40 lokale PM'er trænet, 11 globale sites, 30–50% deviationsreduktion, >50% time-to-perform forbedring, 210M pen fills (+24% OEE), DKK 10M+ procurement besparelser, 2.000+ soldater uddannet.
+
+LEDELSESPROFIL OG VÆRDIER:
+Kerneværdier: Frihed (Frihed), Nærvær (Presence), Skaberkraft (Creative/structural creation).
+Ledelsesstil: Empati + struktur + retning. Opbygger relationer først, skaber derefter struktur og leverer resultater.
+Positioneringsstatement: "Performance without people creates compliance. People without structure creates drift."
+Stærkest i roller der kombinerer faglig SME-status med ledelse og autonomi — den "spillende træner".
+Identificerede udviklingsområder: tendens til konfliktskyhed og pleaser-adfærd. Tilbøjelig til at bruge "fixer-gen" som flugt fra ubehag. Glemmer at fejre succeser.
+Energifordeling (ideal): Ledelse 50%, Dybde/faglig arbejde 25%, Samarbejde 25%.
+
+JOBPRÆFERENCER:
+- Løn: minimum 70.000 DKK/md (nuværende livsstilsbehov ~75.000 DKK/md)
+- Rejse: max 5–10%, kun dansk dagpendling — over 10% er knockout
+- Arbejdstid: 37–40 timer, hybrid 2–3 dage på kontor, 2 dage hjemmefra
+- Kontrakttype: fast stilling foretrækkes — midlertidige rangeres lavere
+- Geografi: Kgs. Lyngby nu. Ved flytning: Solrød Strand (primær) eller Espergærde (sekundær). Pendling til Ballerup/Kbh. acceptabelt.
+- Foretrukne domæner: pharma/life science, MedTech, forsvar, finans, konsumentprodukter med stærk people-kultur
+- Foretrukne rolletyper: People leadership, PMO/portfolio governance, L&D/OD, Chief of Staff, Head of Business Support, Organisationsudvikling
+- Drømmestilling: rolle der forener ledelse + læring + performance — det "spillende træner"-ideal
+- Drømmeworkplace: B&O (passion for audio — bygger selv højttalere, producerer musik)
+
+KENDTE GAB OG BEGRÆNSNINGER:
+- Ingen ren produktudviklingserfaring (B&O Senior PM rolle var for produktnært)
+- Ikke kommerciel/salgsteknisk baggrund
+- Begrænset erfaring med rent digitale transformationsprojekter
+- Har ikke haft titlen "Chief of Staff" — men har udøvet kernefunktionerne (VP's ledergruppe, ugentlige møder, CVP-eskalering)
+- GEA-rolle fravalgt: Samir Maali bekræftede hands-on engineering krævet
+- Agilent fravalgt: 25% rejse
+- Weibel Supply Chain Director: hverken teknisk eller kommercielt fit
+
+AKTIV JOBSØGNING (april 2026):
+Fritstillet sen 2025. Kører struktureret jobsøgning med 31 ansøgninger sendt. Stærkeste aktive ansøgning: LEO Pharma Chief of Staff til CHRO Helle Hedegaard Juhl (netværkskontakt Anne Gæmelke faciliterede intro).
+
+TESTIMONIALS (fra fritstillings-runde, 12+ kolleger):
+Gentagne temaer: psykologisk tryghed, nærvær, integritet, autenticitet, høj moral. Citater inkluderer "den bedste leder jeg har haft."`;
+
+function getProfile() {
+  return localStorage.getItem(PROFILE_STORAGE) || DEFAULT_PROFILE;
+}
+
+function saveProfile() {
+  const text = document.getElementById('settings-profile').value.trim();
+  if (!text) return;
+  localStorage.setItem(PROFILE_STORAGE, text);
+  const el = document.getElementById('profile-save-status');
+  el.textContent = '✓ Profil gemt — bruges ved næste AI-analyse';
+  el.style.color = 'var(--green)';
+  setTimeout(() => el.textContent = '', 3000);
+}
+
+function loadProfileIntoEditor() {
+  const el = document.getElementById('settings-profile');
+  if (el) el.value = getProfile();
+}
+
+function generateProfileUpdatePrompt() {
+  const currentProfile = document.getElementById('settings-profile').value.trim() || getProfile();
+  const prompt = `Jeg bruger Claude som AI-assistent i min jobsøgning og har en profilbeskrivelse der bruges til at analysere jobopslag. Jeg vil gerne have dig til at opdatere profilen baseret på alt du ved om mig fra vores samtaler og din memory.
+
+NUVÆRENDE PROFIL:
+---
+${currentProfile}
+---
+
+Opgave:
+1. Gennemgå profilen kritisk — er noget forældet, upræcist eller mangelfuldt?
+2. Tilføj ny information fra vores seneste samtaler der er relevant for jobsøgning og AI-analyse
+3. Opdater præferencer, geografi, aktiv status eller andet der har ændret sig
+4. Bevar strukturen og formatet — profilen skal stadig fungere som input til AI-jobanalyse
+5. Returner KUN den opdaterede profiltekst — ingen forklaring, ingen kommentarer rundt om
+
+Returner den komplette opdaterede profiltekst direkte, klar til at jeg kan kopiere den ind i min CRM.`;
+
+  document.getElementById('profile-prompt-text').value = prompt;
+  document.getElementById('profile-prompt-box').style.display = 'block';
+  document.getElementById('profile-prompt-box').scrollIntoView({behavior:'smooth'});
+}
+
+function copyProfilePrompt() {
+  const el = document.getElementById('profile-prompt-text');
+  el.select();
+  document.execCommand('copy');
+  alert('Prompt kopieret — paste den i Claude-chatten');
+}
+
+// Make analysePosting use dynamic profile
+function getMagnusProfile() { return getProfile(); }
+
+const MAGNUS_PROFILE = DEFAULT_PROFILE; // fallback reference
 
 async function analysePosting() {
   const posting = document.getElementById('a-posting').value.trim();
@@ -1581,14 +1795,50 @@ async function analysePosting() {
   if (!getApiKey()) return alert('Tilføj din API-nøgle under Settings først');
   const btn = document.getElementById('a-analyse-btn');
   const status = document.getElementById('a-analyse-status');
-  btn.disabled = true; status.textContent = 'Analysing…';
-  const systemPrompt = `You are a career coach. Analyse a job posting against a candidate profile. Respond ONLY with valid JSON, no markdown:
-{"requirements":["req1","req2","req3","req4","req5"],"matchScore":85,"strengths":["s1","s2","s3"],"gaps":["g1","g2"],"angle":"Strategic angle 2-3 sentences."}`;
+  btn.disabled = true; status.textContent = 'Analyserer…';
+
+  const systemPrompt = `Du er en karriererådgiver der vurderer jobopslag for Magnus Fillip Pedersen.
+
+Vurder opslaget på PRÆCIS disse fem dimensioner (0-100 hver):
+1. kompetencematch — Dækker Magnus' erfaring kernekravene? Skelн mellem hårde krav og bløde ønsker.
+2. seniority — Matcher stillingens niveau hans baggrund? Over- eller underkvalificeret?
+3. faglighed — Er domænet relevant (pharma, PMO, L&D, GMP, HR, forsvar) eller kræver det faglig viden han ikke har?
+4. personligtMatch — Passer rollen hans ledelsesprofil, værdier og arbejdsstil?
+5. privatlivGeografi — Rejseaktivitet, arbejdstid, pendlingsafstand, fast/midlertidig stilling.
+
+KNOCKOUT-REGLER (sæt sandsynlighed til max 20 hvis de gælder):
+- Løn sandsynligvis under 70.000 DKK/md
+- Rejse over 10%
+- Kræver fagteknisk ekspertise han ikke har (fx ingeniør, IT-arkitekt, kommercieltansvar)
+
+sandsynlighed = din samlede vurdering af chancen for at Magnus LANDER jobbet — baseret på gab mellem krav og profil, IKKE på om rollen er attraktiv. En god kulturmatch med stort faglighedsgab giver lav sandsynlighed.
+
+Returner KUN valid JSON uden markdown:
+{
+  "sandsynlighed": 72,
+  "dimensioner": {
+    "kompetencematch": 85,
+    "seniority": 80,
+    "faglighed": 70,
+    "personligtMatch": 90,
+    "privatlivGeografi": 75
+  },
+  "requirements": ["krav 1", "krav 2", "krav 3", "krav 4", "krav 5"],
+  "strengths": ["styrke 1", "styrke 2", "styrke 3"],
+  "gaps": ["gab 1", "gab 2"],
+  "angle": "Den strategiske vinkel Magnus bør lede med i ansøgningen — 2-3 sætninger.",
+  "knockout": false,
+  "knockoutReason": ""
+}`;
+
   try {
-    const raw = await claudeApi([{role:'user',content:`Candidate:\n${MAGNUS_PROFILE}\n\nJob posting:\n${posting}`}], systemPrompt);
+    const raw = await claudeApi(
+      [{role:'user', content:`Kandidatprofil:\n${getMagnusProfile()}\n\nJobopslag:\n${posting}`}],
+      systemPrompt, 1500
+    );
     const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
     storeAndShowAnalysis(parsed);
-    status.textContent = 'Done ✓';
+    status.textContent = 'Færdig ✓';
   } catch(e) {
     status.textContent = 'Fejl';
     alert('Analyse fejlede: '+e.message);
@@ -1600,11 +1850,11 @@ function showManualAnalysisEntry() {
   document.getElementById('a-analysis-preview').style.display = 'block';
   document.getElementById('a-analysis-content').innerHTML = `
     <div style="background:var(--amber-light);border-radius:6px;padding:.8rem;margin-bottom:.8rem;">
-      <div style="font-size:.8rem;color:var(--amber);font-weight:500;margin-bottom:.3rem;">⚠️ AI analyse virker ikke fra GitHub Pages</div>
-      <div style="font-size:.78rem;color:var(--amber);">Kopier opslaget og paste det i din Claude-chat og bed om: <em>"Analyser dette jobopslag mod min profil og giv mig matchScore, strengths, gaps og angle som JSON"</em> — kopier derefter resultatet herunder.</div>
+      <div style="font-size:.8rem;color:var(--amber);font-weight:500;margin-bottom:.3rem;">⚠️ API-nøgle mangler</div>
+      <div style="font-size:.78rem;color:var(--amber);">Gå til Settings og tilføj din Anthropic API-nøgle — så virker analyse direkte i CRM'en.</div>
     </div>
-    <div class="field"><label>Paste JSON-resultat fra Claude her</label>
-      <textarea id="manual-json-input" style="min-height:80px;font-size:.78rem;font-family:monospace;" placeholder='{"matchScore":85,"strengths":["..."],"gaps":["..."],"angle":"...","requirements":["..."]}'></textarea>
+    <div class="field"><label>Eller paste JSON-resultat manuelt</label>
+      <textarea id="manual-json-input" style="min-height:80px;font-size:.78rem;font-family:monospace;" placeholder='{"sandsynlighed":72,"dimensioner":{...},"strengths":[...],"gaps":[...],"angle":"..."}'></textarea>
     </div>
     <button class="btn btn-primary btn-sm" onclick="applyManualJson()" style="margin-top:.5rem;">Apply</button>`;
 }
@@ -1614,36 +1864,54 @@ function applyManualJson() {
     const raw = document.getElementById('manual-json-input').value.trim();
     const parsed = JSON.parse(raw);
     storeAndShowAnalysis(parsed);
-  } catch(e) {
-    alert('Ugyldigt JSON — prøv igen');
-  }
+  } catch(e) { alert('Ugyldigt JSON — prøv igen'); }
 }
 
 function storeAndShowAnalysis(parsed) {
+  // Support both old format (matchScore) and new format (sandsynlighed)
+  const score = parsed.sandsynlighed ?? parsed.matchScore ?? 0;
   document.getElementById('a-requirements').value = JSON.stringify(parsed.requirements||[]);
-  document.getElementById('a-match-score').value = parsed.matchScore;
+  document.getElementById('a-match-score').value = score;
   document.getElementById('a-match-strengths').value = JSON.stringify(parsed.strengths||[]);
   document.getElementById('a-match-gaps').value = JSON.stringify(parsed.gaps||[]);
   document.getElementById('a-match-angle').value = parsed.angle||'';
-  showAnalysisPreview(parsed.matchScore, JSON.stringify(parsed.strengths||[]), JSON.stringify(parsed.gaps||[]), parsed.angle||'', JSON.stringify(parsed.requirements||[]));
+  // Store full analysis for detail view
+  document.getElementById('a-match-strengths').dataset.dims = JSON.stringify(parsed.dimensioner||{});
+  document.getElementById('a-match-strengths').dataset.knockout = parsed.knockout ? parsed.knockoutReason||'Knockout-regel udløst' : '';
+  showAnalysisPreview(score, parsed);
 }
 
-function showAnalysisPreview(score, strengthsJson, gapsJson, angle, reqJson) {
+function showAnalysisPreview(score, parsed) {
   const scoreNum = parseInt(score)||0;
-  const scoreColor = scoreNum >= 75 ? 'var(--green)' : scoreNum >= 55 ? 'var(--amber)' : 'var(--red)';
-  const strengths = JSON.parse(strengthsJson||'[]');
-  const gaps = JSON.parse(gapsJson||'[]');
-  const reqs = JSON.parse(reqJson||'[]');
+  const scoreColor = scoreNum>=75?'var(--green)':scoreNum>=55?'var(--amber)':'var(--red)';
+  const strengths = parsed.strengths||[];
+  const gaps = parsed.gaps||[];
+  const reqs = parsed.requirements||[];
+  const dims = parsed.dimensioner||{};
+  const ko = parsed.knockout ? `<div style="background:var(--red-light);border-radius:6px;padding:.5rem .7rem;margin-bottom:.6rem;font-size:.8rem;color:var(--red);"><strong>⛔ Knockout:</strong> ${parsed.knockoutReason}</div>` : '';
+
+  const dimLabels = {kompetencematch:'Kompetencematch',seniority:'Seniority',faglighed:'Faglighed',personligtMatch:'Personligt match',privatlivGeografi:'Privatliv & geografi'};
+  const dimHtml = Object.keys(dimLabels).map(k => {
+    const v = dims[k]||0;
+    const c = v>=75?'#2d6a4f':v>=55?'#b5621a':'#9b2226';
+    return `<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.3rem;">
+      <div style="font-size:.78rem;width:140px;flex-shrink:0;">${dimLabels[k]}</div>
+      <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;"><div style="width:${v}%;height:100%;background:${c};border-radius:3px;"></div></div>
+      <span style="font-size:.75rem;font-weight:600;color:${c};width:28px;text-align:right;">${v}</span>
+    </div>`;
+  }).join('');
 
   document.getElementById('a-analysis-content').innerHTML = `
+    ${ko}
     <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.8rem;">
       <div style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:${scoreColor};">${scoreNum}%</div>
-      <div style="font-size:.82rem;color:var(--muted);">match with your profile</div>
+      <div style="font-size:.82rem;color:var(--muted);">sandsynlighed for at lande stillingen</div>
     </div>
-    ${reqs.length?`<div style="margin-bottom:.7rem;"><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">Key requirements</div>${reqs.map(r=>`<div style="font-size:.82rem;padding:.15rem 0;">• ${r}</div>`).join('')}</div>`:''}
-    ${strengths.length?`<div style="margin-bottom:.7rem;"><div style="font-size:.72rem;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">✅ Your strengths</div>${strengths.map(s=>`<div style="font-size:.82rem;padding:.15rem 0;">${s}</div>`).join('')}</div>`:''}
-    ${gaps.length?`<div style="margin-bottom:.7rem;"><div style="font-size:.72rem;color:var(--amber);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">⚠️ Gaps to address</div>${gaps.map(g=>`<div style="font-size:.82rem;padding:.15rem 0;">${g}</div>`).join('')}</div>`:''}
-    ${angle?`<div style="border-top:1px solid var(--border);padding-top:.7rem;margin-top:.3rem;"><div style="font-size:.72rem;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">💡 Your angle</div><div style="font-size:.84rem;line-height:1.5;">${angle}</div></div>`:''}
+    ${Object.keys(dims).length?`<div style="margin-bottom:.8rem;">${dimHtml}</div>`:''}
+    ${reqs.length?`<div style="margin-bottom:.6rem;"><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">Nøglekrav i opslaget</div>${reqs.map(r=>`<div style="font-size:.82rem;padding:.1rem 0;">• ${r}</div>`).join('')}</div>`:''}
+    ${strengths.length?`<div style="margin-bottom:.6rem;"><div style="font-size:.72rem;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">✅ Dine styrker</div>${strengths.map(s=>`<div style="font-size:.82rem;padding:.1rem 0;">${s}</div>`).join('')}</div>`:''}
+    ${gaps.length?`<div style="margin-bottom:.6rem;"><div style="font-size:.72rem;color:var(--amber);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">⚠️ Gab at adressere</div>${gaps.map(g=>`<div style="font-size:.82rem;padding:.1rem 0;">${g}</div>`).join('')}</div>`:''}
+    ${parsed.angle?`<div style="border-top:1px solid var(--border);padding-top:.6rem;"><div style="font-size:.72rem;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">💡 Din vinkel</div><div style="font-size:.84rem;line-height:1.5;">${parsed.angle}</div></div>`:''}
   `;
   document.getElementById('a-analysis-preview').style.display = 'block';
 }
