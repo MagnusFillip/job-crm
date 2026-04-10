@@ -269,8 +269,18 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
           <button class="btn btn-primary" onclick="openModal('company')">+ Add company</button>
         </div>
       </div>
-      <div class="card table-card">
-        <div class="table-wrap" id="wrap-companies"><table class="table" id="tbl-companies">
+      <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
+        <input id="filter-companies-search" placeholder="Search company…" oninput="renderCompanies()" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.35rem .7rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);width:200px;">
+        <select id="filter-companies-status" onchange="renderCompanies()" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.35rem .7rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);">
+          <option value="">All statuses</option>
+          <option>Active</option><option>Prospect</option><option>On hold</option><option>Closed</option>
+        </select>
+        <select id="filter-companies-sort" onchange="renderCompanies()" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.35rem .7rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);">
+          <option value="name">A–Z Name</option>
+          <option value="industry">A–Z Industry</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="clearCompanyFilters()">Clear</button>
+      </div>
           <thead><tr><th>Company</th><th>Industry</th><th>Status</th><th>Contacts</th><th>Applied</th><th>Open roles</th><th>Notes</th><th></th></tr></thead>
           <tbody id="companies-body"></tbody>
         </table></div>
@@ -318,7 +328,25 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
     <div class="page" id="page-contacts">
       <div class="section-header">
         <h2>Contacts</h2>
-        <button class="btn btn-primary" onclick="openModal('contact')">+ Add contact</button>
+        <div style="display:flex;gap:.5rem;">
+          <button class="btn btn-ghost" onclick="openImportFromContacts()">📥 Import conversation</button>
+          <button class="btn btn-primary" onclick="openNewContact()">+ Add contact</button>
+        </div>
+      </div>
+      <!-- Filter bar -->
+      <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
+        <input id="filter-contacts-search" placeholder="Search name / company…" oninput="renderContacts()" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.35rem .7rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);width:200px;">
+        <select id="filter-contacts-status" onchange="renderContacts()" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.35rem .7rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);">
+          <option value="">All statuses</option>
+          <option>Active ally</option><option>Pending reply</option><option>Follow up</option><option>Passive</option><option>Closed</option>
+        </select>
+        <select id="filter-contacts-sort" onchange="renderContacts()" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.35rem .7rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);">
+          <option value="name">A–Z Name</option>
+          <option value="company">A–Z Company</option>
+          <option value="lastContact">Latest contact</option>
+          <option value="due">Due date</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="clearContactFilters()">Clear</button>
       </div>
       <div class="card table-card">
         <div class="table-wrap" id="wrap-contacts"><table class="table" id="tbl-contacts">
@@ -387,8 +415,17 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
         <div class="tab" onclick="filterApps('Interview',this)">Interview</div>
         <div class="tab" onclick="filterApps('Rejected',this)">Rejected</div>
       </div>
-      <div class="card table-card">
-        <div class="table-wrap" id="wrap-applications"><table class="table" id="tbl-applications">
+      <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
+        <input id="filter-apps-search" placeholder="Search role / company…" oninput="renderApplications()" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.35rem .7rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);width:200px;">
+        <select id="filter-apps-sort" onchange="renderApplications()" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.35rem .7rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);">
+          <option value="company">A–Z Company</option>
+          <option value="role">A–Z Role</option>
+          <option value="deadline">Deadline</option>
+          <option value="followup">Follow-up date</option>
+          <option value="match">Match score</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="clearAppFilters()">Clear</button>
+      </div>
           <thead><tr><th>Role</th><th>Company</th><th>Status</th><th>Match</th><th>Deadline</th><th>Follow-up</th><th>Contacts</th><th>Notes</th><th></th></tr></thead>
           <tbody id="applications-body"></tbody>
         </table></div>
@@ -803,9 +840,25 @@ function renderDashboard() {
 // COMPANIES
 let currentCompanyId = null;
 
+function clearCompanyFilters() {
+  document.getElementById('filter-companies-search').value = '';
+  document.getElementById('filter-companies-status').value = '';
+  document.getElementById('filter-companies-sort').value = 'name';
+  renderCompanies();
+}
+
 function renderCompanies() {
+  const search = (document.getElementById('filter-companies-search')?.value||'').toLowerCase();
+  const statusF = document.getElementById('filter-companies-status')?.value||'';
+  const sort = document.getElementById('filter-companies-sort')?.value||'name';
   const sc={Active:'green',Prospect:'blue','On hold':'amber',Closed:'grey'};
-  document.getElementById('companies-body').innerHTML = db.companies.map(c=>{
+
+  let list = [...db.companies];
+  if (search) list = list.filter(c => c.name.toLowerCase().includes(search) || (c.industry||'').toLowerCase().includes(search));
+  if (statusF) list = list.filter(c => c.status === statusF);
+  list.sort((a,b) => (a[sort]||'').localeCompare(b[sort]||''));
+
+  document.getElementById('companies-body').innerHTML = list.map(c=>{
     const applied = db.applications.filter(a=>a.companyId===c.id && a.status!=='Rejected').length;
     const openRoles = (c.openRoles||[]);
     const openHtml = openRoles.length
@@ -821,7 +874,7 @@ function renderCompanies() {
       <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);font-size:.8rem;">${c.notes||''}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="editCompany('${c.id}')">Edit</button></td>
     </tr>`;
-  }).join('');
+  }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem;">No companies found</td></tr>';
 }
 
 function openCompanyDetail(id) {
@@ -1045,10 +1098,35 @@ function applyScanResult() {
 }
 
 // CONTACTS
+function clearContactFilters() {
+  document.getElementById('filter-contacts-search').value = '';
+  document.getElementById('filter-contacts-status').value = '';
+  document.getElementById('filter-contacts-sort').value = 'name';
+  renderContacts();
+}
+
 function renderContacts() {
+  const search = (document.getElementById('filter-contacts-search')?.value||'').toLowerCase();
+  const statusF = document.getElementById('filter-contacts-status')?.value||'';
+  const sort = document.getElementById('filter-contacts-sort')?.value||'name';
   const rc={'Peer':'blue','Leader above me':'purple','Recruiter':'amber','Network':'green','Decision maker':'red'};
   const cs={'Active ally':'active','Passive':'passive','Pending reply':'pending','Follow up':'followup','Closed':'closed'};
-  document.getElementById('contacts-body').innerHTML = db.contacts.map(c=>{
+
+  let list = [...db.contacts];
+  if (search) list = list.filter(c => c.name.toLowerCase().includes(search) || (c.company||'').toLowerCase().includes(search) || (c.title||'').toLowerCase().includes(search));
+  if (statusF) list = list.filter(c => (c.networkStatus||'Pending reply') === statusF);
+
+  list.sort((a,b) => {
+    if (sort === 'lastContact') return (b.lastContact||'').localeCompare(a.lastContact||'');
+    if (sort === 'due') {
+      const da = a.due ? new Date(a.due) : new Date('9999');
+      const db2 = b.due ? new Date(b.due) : new Date('9999');
+      return da - db2;
+    }
+    return (a[sort]||'').localeCompare(b[sort]||'');
+  });
+
+  document.getElementById('contacts-body').innerHTML = list.map(c=>{
     const statusKey = c.networkStatus||'Pending reply';
     const dotClass = cs[statusKey]||'pending';
     return `<tr>
@@ -1062,7 +1140,7 @@ function renderContacts() {
       <td>${c.due?`<span style="color:var(--red);font-weight:500;">${formatDate(c.due)}</span>`:'—'}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="editContact('${c.id}')">Edit</button></td>
     </tr>`;
-  }).join('');
+  }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">No contacts found</td></tr>';
 }
 
 function openContactDetail(id) {
@@ -1156,14 +1234,38 @@ function closeDetail() {
 }
 
 // APPLICATIONS
+function clearAppFilters() {
+  document.getElementById('filter-apps-search').value = '';
+  document.getElementById('filter-apps-sort').value = 'company';
+  renderApplications();
+}
+
 function renderApplications() {
+  const search = (document.getElementById('filter-apps-search')?.value||'').toLowerCase();
+  const sort = document.getElementById('filter-apps-sort')?.value||'company';
   const sc={Wishlist:'purple',Draft:'grey',Sent:'blue',Interview:'green',Offer:'green',Rejected:'red'};
-  const filtered = appFilter==='all' ? db.applications : db.applications.filter(a=>a.status===appFilter);
+
+  let filtered = appFilter==='all' ? db.applications : db.applications.filter(a=>a.status===appFilter);
+  if (search) filtered = filtered.filter(a => a.role.toLowerCase().includes(search) || a.company.toLowerCase().includes(search));
+
+  filtered = [...filtered].sort((a,b) => {
+    if (sort === 'deadline') {
+      const da = a.deadline ? new Date(a.deadline) : new Date('9999');
+      const db2 = b.deadline ? new Date(b.deadline) : new Date('9999');
+      return da - db2;
+    }
+    if (sort === 'followup') {
+      const da = a.followup ? new Date(a.followup) : new Date('9999');
+      const db2 = b.followup ? new Date(b.followup) : new Date('9999');
+      return da - db2;
+    }
+    if (sort === 'match') return (parseInt(b.matchScore)||0) - (parseInt(a.matchScore)||0);
+    return (a[sort]||'').localeCompare(b[sort]||'');
+  });
+
   document.getElementById('applications-body').innerHTML = filtered.map(a=>{
     const score = a.matchScore ? parseInt(a.matchScore) : null;
-    const barColor = score
-      ? score>=75 ? '#2d6a4f' : score>=55 ? '#b5621a' : '#9b2226'
-      : null;
+    const barColor = score ? (score>=75?'#2d6a4f':score>=55?'#b5621a':'#9b2226') : null;
     const scoreHtml = score
       ? `<div style="display:flex;align-items:center;gap:.4rem;">
            <div class="bar-wrap"><div class="bar-fill" style="width:${score}%;background:${barColor};"></div></div>
@@ -1194,6 +1296,31 @@ function filterApps(status, el) {
 // MODALS
 function openModal(type) { populateSelects(); document.getElementById('modal-'+type).classList.add('open'); }
 function closeModal(type) { document.getElementById('modal-'+type).classList.remove('open'); }
+
+function openNewContact() {
+  // Clear all fields so we never accidentally edit an existing contact
+  document.getElementById('contact-edit-id').value = '';
+  document.getElementById('ct-name').value = '';
+  document.getElementById('ct-title').value = '';
+  document.getElementById('ct-outcome').value = '';
+  document.getElementById('ct-nextstep').value = '';
+  document.getElementById('ct-due').value = '';
+  document.getElementById('ct-notes').value = '';
+  document.getElementById('ct-lastcontact').value = '';
+  document.getElementById('contact-modal-title').textContent = 'Add contact';
+  populateSelects();
+  document.getElementById('ct-company').value = '';
+  document.getElementById('ct-relation').value = 'Network';
+  document.getElementById('ct-networkstatus').value = 'Pending reply';
+  document.getElementById('modal-contact').classList.add('open');
+}
+
+function openImportFromContacts() {
+  document.getElementById('import-text').value = '';
+  document.getElementById('import-preview').innerHTML = '';
+  document.getElementById('import-parse-btn').textContent = 'Parse with AI';
+  openModal('import');
+}
 document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('open'); }));
 
 function populateSelects() {
