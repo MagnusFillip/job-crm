@@ -583,9 +583,16 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 
 <!-- CONTACT MODAL -->
 <div class="modal-overlay" id="modal-contact">
-  <div class="modal">
+  <div class="modal" style="width:560px;">
     <div class="modal-header"><h3 id="contact-modal-title">Add contact</h3><button class="modal-close" onclick="closeModal('contact')">✕</button></div>
-    <div class="modal-body">
+    <!-- Tabs -->
+    <div style="display:flex;border-bottom:1px solid var(--border);">
+      <div class="tab active" id="ct-tab-manual" onclick="switchContactTab('manual')" style="padding:.6rem 1.2rem;cursor:pointer;font-size:.84rem;border-bottom:2px solid var(--text);margin-bottom:-1px;font-weight:500;">✏️ Manual</div>
+      <div class="tab" id="ct-tab-import" onclick="switchContactTab('import')" style="padding:.6rem 1.2rem;cursor:pointer;font-size:.84rem;border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--muted);">📥 Import conversation</div>
+    </div>
+
+    <!-- MANUAL TAB -->
+    <div id="ct-panel-manual" class="modal-body">
       <input type="hidden" id="contact-edit-id">
       <div class="field-row">
         <div class="field"><label>Full name</label><input id="ct-name"></div>
@@ -593,13 +600,26 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
       </div>
       <div class="field-row">
         <div class="field"><label>Company</label><select id="ct-company"><option value="">— Select —</option></select></div>
-        <div class="field"><label>Relation</label><select id="ct-relation"><option>Peer</option><option>Leader above me</option><option>Recruiter</option><option>Network</option><option>Decision maker</option></select></div>
+        <div class="field">
+          <label>Relation (vælg alle der passer)</label>
+          <div id="ct-relation-checks" style="display:flex;flex-wrap:wrap;gap:.4rem .8rem;margin-top:.3rem;">
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Peer"> Peer</label>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Leader above me"> Leder over mig</label>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Leader above me (2nd level)"> Leder 2. niveau</label>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Recruiter"> Recruiter</label>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Network"> Netværk</label>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Decision maker"> Besluttningstager</label>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Former colleague"> Tidligere kollega</label>
+          </div>
+        </div>
       </div>
-      <div class="field"><label>Last contacted</label><input type="date" id="ct-lastcontact"></div>
-      <div class="field"><label>Network status</label>
-        <select id="ct-networkstatus">
-          <option>Active ally</option><option>Passive</option><option>Pending reply</option><option>Follow up</option><option>Closed</option>
-        </select>
+      <div class="field-row">
+        <div class="field"><label>Last contacted</label><input type="date" id="ct-lastcontact"></div>
+        <div class="field"><label>Network status</label>
+          <select id="ct-networkstatus">
+            <option>Active ally</option><option>Passive</option><option>Pending reply</option><option>Follow up</option><option>Closed</option>
+          </select>
+        </div>
       </div>
       <div class="field"><label>Outcome of last interaction</label><textarea id="ct-outcome"></textarea></div>
       <div class="field-row">
@@ -608,7 +628,21 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
       </div>
       <div class="field"><label>Notes</label><textarea id="ct-notes"></textarea></div>
     </div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('contact')">Cancel</button><button class="btn btn-primary" onclick="saveContact()">Save</button></div>
+
+    <!-- IMPORT TAB -->
+    <div id="ct-panel-import" class="modal-body" style="display:none;">
+      <div class="field">
+        <label>Paste LinkedIn-besked, e-mail eller samtaletråd</label>
+        <textarea id="ct-import-text" style="min-height:140px;" placeholder="Paste hele samtalen her — navn, titel og beskedtråd…"></textarea>
+      </div>
+      <button class="btn btn-primary" id="ct-import-btn" onclick="parseContactConversation()" style="width:100%;">Parse med AI</button>
+      <div id="ct-import-preview" style="margin-top:1rem;"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('contact')">Cancel</button>
+      <button class="btn btn-primary" id="ct-save-btn" onclick="saveContact()">Save</button>
+    </div>
   </div>
 </div>
 
@@ -1392,7 +1426,6 @@ function openModal(type) { populateSelects(); document.getElementById('modal-'+t
 function closeModal(type) { document.getElementById('modal-'+type).classList.remove('open'); }
 
 function openNewContact() {
-  // Clear all fields so we never accidentally edit an existing contact
   document.getElementById('contact-edit-id').value = '';
   document.getElementById('ct-name').value = '';
   document.getElementById('ct-title').value = '';
@@ -1402,10 +1435,13 @@ function openNewContact() {
   document.getElementById('ct-notes').value = '';
   document.getElementById('ct-lastcontact').value = '';
   document.getElementById('contact-modal-title').textContent = 'Add contact';
+  document.getElementById('ct-import-text').value = '';
+  document.getElementById('ct-import-preview').innerHTML = '';
   populateSelects();
   document.getElementById('ct-company').value = '';
-  document.getElementById('ct-relation').value = 'Network';
+  setRelationValues([]);
   document.getElementById('ct-networkstatus').value = 'Pending reply';
+  switchContactTab('manual');
   document.getElementById('modal-contact').classList.add('open');
 }
 
@@ -1446,16 +1482,82 @@ function editCompany(id) {
   openModal('company');
 }
 
-// SAVE CONTACT
+// Contact relation helpers
+function getRelationValues() {
+  return [...document.querySelectorAll('#ct-relation-checks input:checked')].map(cb => cb.value);
+}
+function setRelationValues(vals) {
+  const arr = Array.isArray(vals) ? vals : (vals||'').split(',').map(s=>s.trim()).filter(Boolean);
+  document.querySelectorAll('#ct-relation-checks input').forEach(cb => {
+    cb.checked = arr.includes(cb.value);
+  });
+}
+function getRelationDisplay(vals) {
+  const arr = Array.isArray(vals) ? vals : (vals||'').split(',').map(s=>s.trim()).filter(Boolean);
+  return arr.join(', ') || 'Network';
+}
+
+function switchContactTab(tab) {
+  document.getElementById('ct-panel-manual').style.display = tab==='manual' ? '' : 'none';
+  document.getElementById('ct-panel-import').style.display = tab==='import' ? '' : 'none';
+  document.getElementById('ct-tab-manual').style.borderBottomColor = tab==='manual' ? 'var(--text)' : 'transparent';
+  document.getElementById('ct-tab-manual').style.color = tab==='manual' ? 'var(--text)' : 'var(--muted)';
+  document.getElementById('ct-tab-manual').style.fontWeight = tab==='manual' ? '500' : '400';
+  document.getElementById('ct-tab-import').style.borderBottomColor = tab==='import' ? 'var(--text)' : 'transparent';
+  document.getElementById('ct-tab-import').style.color = tab==='import' ? 'var(--text)' : 'var(--muted)';
+  document.getElementById('ct-tab-import').style.fontWeight = tab==='import' ? '500' : '400';
+  document.getElementById('ct-save-btn').style.display = tab==='manual' ? '' : 'none';
+}
+
+async function parseContactConversation() {
+  const text = document.getElementById('ct-import-text').value.trim();
+  if (!text) return alert('Paste en samtale først');
+  if (!getApiKey()) return alert('Tilføj din API-nøgle under Settings først');
+  const btn = document.getElementById('ct-import-btn');
+  btn.textContent = 'Parser…'; btn.disabled = true;
+  const systemPrompt = 'Du er en CRM data-ekstraktor. Udtræk kontakt- og interaktionsdata fra en beskedtråd. Svar KUN med valid JSON: {"contact":{"name":"","title":"","company":"","relation":"Network","notes":""},"log":{"type":"LinkedIn message","outcome":"","nextStep":"","sentiment":"warm"}}';
+  try {
+    const raw = await claudeApi([{role:'user',content:`Udtræk CRM-data fra denne samtale:\n\n${text}`}], systemPrompt);
+    const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    _importParsed = parsed;
+    const sc = {warm:'green',neutral:'grey',cold:'red',interested:'blue'}[parsed.log?.sentiment]||'grey';
+    document.getElementById('ct-import-preview').innerHTML = `
+      <div style="background:var(--faint);border-radius:8px;padding:.8rem;margin-bottom:.6rem;">
+        <div style="font-weight:600;">${parsed.contact.name}</div>
+        <div style="font-size:.82rem;color:var(--muted);">${parsed.contact.title} · ${parsed.contact.company}</div>
+        <div style="margin-top:.4rem;font-size:.82rem;">${parsed.log.outcome}</div>
+        <div style="font-size:.8rem;color:var(--amber);margin-top:.2rem;">→ ${parsed.log.nextStep}</div>
+      </div>
+      <button class="btn btn-primary" onclick="confirmImport()" style="width:100%;">✓ Gem i CRM</button>`;
+  } catch(e) {
+    alert('Parser fejlede: '+e.message);
+  }
+  btn.textContent = 'Parse med AI'; btn.disabled = false;
+}
 function saveContact() {
   const editId=document.getElementById('contact-edit-id').value;
   const companyId=document.getElementById('ct-company').value;
   const companyName=companyId?(db.companies.find(c=>c.id===companyId)||{}).name||'':'';
-  const obj={id:editId||newId(),name:document.getElementById('ct-name').value.trim(),title:document.getElementById('ct-title').value.trim(),company:companyName,companyId,relation:document.getElementById('ct-relation').value,networkStatus:document.getElementById('ct-networkstatus').value,lastContact:document.getElementById('ct-lastcontact').value,outcome:document.getElementById('ct-outcome').value.trim(),nextStep:document.getElementById('ct-nextstep').value.trim(),due:document.getElementById('ct-due').value,notes:document.getElementById('ct-notes').value.trim(),log:editId?(db.contacts.find(c=>c.id===editId)||{}).log||[]:[]};
+  const relations = getRelationValues();
+  const obj={
+    id:editId||newId(),
+    name:document.getElementById('ct-name').value.trim(),
+    title:document.getElementById('ct-title').value.trim(),
+    company:companyName, companyId,
+    relation: relations.length ? relations.join(', ') : 'Network',
+    networkStatus:document.getElementById('ct-networkstatus').value,
+    lastContact:document.getElementById('ct-lastcontact').value,
+    outcome:document.getElementById('ct-outcome').value.trim(),
+    nextStep:document.getElementById('ct-nextstep').value.trim(),
+    due:document.getElementById('ct-due').value,
+    notes:document.getElementById('ct-notes').value.trim(),
+    log:editId?(db.contacts.find(c=>c.id===editId)||{}).log||[]:[]
+  };
   if(!obj.name)return alert('Name required');
   if(editId){const i=db.contacts.findIndex(c=>c.id===editId);db.contacts[i]=obj;}else db.contacts.push(obj);
   saveDB();closeModal('contact');document.getElementById('contact-edit-id').value='';renderContacts();updateStats();
 }
+
 function editContact(id) {
   const c=db.contacts.find(x=>x.id===id);
   document.getElementById('contact-modal-title').textContent='Edit contact';
@@ -1464,13 +1566,14 @@ function editContact(id) {
   document.getElementById('ct-title').value=c.title||'';
   populateSelects();
   document.getElementById('ct-company').value=c.companyId||'';
-  document.getElementById('ct-relation').value=c.relation;
+  setRelationValues(c.relation);
   document.getElementById('ct-lastcontact').value=c.lastContact||'';
   document.getElementById('ct-networkstatus').value=c.networkStatus||'Pending reply';
   document.getElementById('ct-outcome').value=c.outcome||'';
   document.getElementById('ct-nextstep').value=c.nextStep||'';
   document.getElementById('ct-due').value=c.due||'';
   document.getElementById('ct-notes').value=c.notes||'';
+  switchContactTab('manual');
   openModal('contact');
 }
 
@@ -2063,9 +2166,11 @@ Respond ONLY with valid JSON in this exact format — no markdown, no explanatio
   btn.textContent = 'Parse with AI'; btn.disabled = false;
 }
 
+let _importParsed = null;
+
 function showImportPreview(parsed) {
+  _importParsed = parsed;
   const sc = {warm:'green',neutral:'grey',cold:'red',interested:'blue'}[parsed.log?.sentiment]||'grey';
-  const safeJson = encodeURIComponent(JSON.stringify(parsed));
   document.getElementById('import-preview').innerHTML = `
     <div style="background:var(--faint);border-radius:8px;padding:1rem;margin-bottom:.8rem;">
       <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;">Extracted contact</div>
@@ -2080,32 +2185,45 @@ function showImportPreview(parsed) {
       <div style="font-size:.84rem;color:var(--amber);"><strong>Next step:</strong> ${parsed.log.nextStep}</div>
     </div>
     <div style="display:flex;gap:.5rem;">
-      <button class="btn btn-primary" onclick="confirmImport(decodeURIComponent('${safeJson}'))">✓ Save to CRM</button>
-      <button class="btn btn-ghost" onclick="document.getElementById('import-preview').innerHTML=''">Try again</button>
+      <button class="btn btn-primary" onclick="confirmImport()">✓ Save to CRM</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('import-preview').innerHTML='';_importParsed=null;">Try again</button>
     </div>`;
 }
 
-function confirmImport(jsonStr) {
-  const parsed = JSON.parse(jsonStr);
+function confirmImport() {
+  if (!_importParsed) return alert('Ingen data at gemme — parse samtalen først');
+  const parsed = _importParsed;
   const today = new Date().toISOString().split('T')[0];
 
   let company = db.companies.find(c => c.name.toLowerCase() === (parsed.contact.company||'').toLowerCase());
   if (!company) {
-    company = { id:newId(), name:parsed.contact.company, industry:'—', status:'Prospect', roles:'', notes:'Added via conversation import.' };
+    company = { id:newId(), name:parsed.contact.company||'Ukendt', industry:'—', status:'Prospect', roles:'', notes:'Added via conversation import.' };
     db.companies.push(company);
   }
 
-  let contact = db.contacts.find(c => c.name.toLowerCase() === parsed.contact.name.toLowerCase());
-  const logEntry = { date:today, type:parsed.log.type, outcome:parsed.log.outcome, nextStep:parsed.log.nextStep, due:'' };
+  let contact = db.contacts.find(c => c.name.toLowerCase() === (parsed.contact.name||'').toLowerCase());
+  const logEntry = { date:today, type:parsed.log?.type||'LinkedIn message', outcome:parsed.log?.outcome||'', nextStep:parsed.log?.nextStep||'', due:'' };
 
   if (contact) {
-    contact.log = contact.log||[]; contact.log.push(logEntry);
-    contact.lastContact = today; contact.nextStep = parsed.log.nextStep; contact.outcome = parsed.log.outcome;
+    contact.log = contact.log||[];
+    contact.log.push(logEntry);
+    contact.lastContact = today;
+    contact.nextStep = parsed.log?.nextStep||contact.nextStep;
+    contact.outcome = parsed.log?.outcome||contact.outcome;
   } else {
-    contact = { id:newId(), name:parsed.contact.name, title:parsed.contact.title, company:company.name, companyId:company.id, relation:parsed.contact.relation, lastContact:today, outcome:parsed.log.outcome, nextStep:parsed.log.nextStep, due:'', notes:parsed.contact.notes||'', log:[logEntry] };
+    contact = {
+      id:newId(), name:parsed.contact.name, title:parsed.contact.title||'',
+      company:company.name, companyId:company.id,
+      relation:parsed.contact.relation||'Network',
+      networkStatus:'Pending reply',
+      lastContact:today, outcome:parsed.log?.outcome||'',
+      nextStep:parsed.log?.nextStep||'', due:'', notes:parsed.contact.notes||'',
+      log:[logEntry]
+    };
     db.contacts.push(contact);
   }
 
+  _importParsed = null;
   saveDB(); closeModal('import');
   document.getElementById('import-text').value='';
   document.getElementById('import-preview').innerHTML='';
