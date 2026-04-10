@@ -851,7 +851,15 @@ function renderPage(p) {
   if (p==='dashboard') renderDashboard();
   if (p==='companies') renderCompanies();
   if (p==='contacts') renderContacts();
-  if (p==='applications') renderApplications();
+  if (p==='applications') {
+    // Reset to 'all' each time page is navigated to
+    appFilter = 'all';
+    document.querySelectorAll('#page-applications .tab').forEach(t => {
+      const tabStatus = t.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] || 'all';
+      t.classList.toggle('active', tabStatus === 'all');
+    });
+    renderApplications();
+  }
   updateStats();
 }
 
@@ -1416,8 +1424,9 @@ function compositeScore(a) {
 
 function filterApps(status, el) {
   appFilter = status;
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#page-applications .tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
+  closeAppDetail();
   renderApplications();
 }
 
