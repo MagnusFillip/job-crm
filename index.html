@@ -215,7 +215,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
     <h1>Magnus · CRM</h1>
-    <p>Job Search OS · v14-apr</p>
+    <p>Job Search OS · v15-apr</p>
   </div>
   <nav class="nav">
     <div class="nav-item active" data-page="dashboard">⚡ Dashboard</div>
@@ -1811,6 +1811,7 @@ function filterApps(status, el) {
   appDetailEl.style.display = 'none';
   currentAppId = null;
   renderApplications();
+  window.scrollTo({top:0, behavior:'instant'});
 }
 
 // MODALS
