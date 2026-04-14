@@ -215,7 +215,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
     <h1>Magnus · CRM</h1>
-    <p>Job Search OS · v15-apr</p>
+    <p>Job Search OS · v16-apr</p>
   </div>
   <nav class="nav">
     <div class="nav-item active" data-page="dashboard">⚡ Dashboard</div>
@@ -369,50 +369,57 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
       <div class="detail-panel mt3" id="contact-detail">
         <div class="card">
           <div class="card-header">
-            <h2 id="detail-contact-name"></h2>
+            <div>
+              <h2 id="detail-contact-name"></h2>
+              <div id="d-title-sub" style="font-size:.84rem;color:var(--muted);margin-top:.2rem;"></div>
+            </div>
             <div style="display:flex;gap:.5rem;">
               <button class="btn btn-ghost btn-sm" onclick="editContactFromDetail()">Edit</button>
-              <button class="btn btn-ghost btn-sm" onclick="closeDetail()">← Back</button>
+              <button class="btn btn-ghost btn-sm" onclick="closeDetail()">← Luk</button>
             </div>
           </div>
           <div class="card-body">
-            <div class="grid-2">
-              <!-- LEFT: info + linked apps -->
-              <div>
-                <div class="field"><label>Title</label><span id="d-title"></span></div>
-                <div class="field mt2"><label>Company</label><span id="d-company"></span></div>
-                <div class="field mt2"><label>Relation</label><span id="d-relation"></span></div>
-                <div class="field mt2"><label>Network status</label><span id="d-networkstatus"></span></div>
-                <div class="field mt2"><label>Notes</label><span id="d-notes" style="color:var(--muted);font-size:.84rem;line-height:1.5;"></span></div>
-                <div class="field mt2"><label>Next step</label>
-                  <div id="d-nextstep" style="color:var(--amber);font-weight:500;"></div>
-                  <div id="d-nextstep-suggestion" style="display:none;margin-top:.5rem;background:var(--blue-light);border-radius:6px;padding:.6rem;">
-                    <div style="font-size:.72rem;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">💡 AI foreslår</div>
-                    <div id="d-nextstep-suggestion-text" style="font-size:.84rem;color:var(--blue);line-height:1.5;"></div>
-                    <div style="display:flex;gap:.4rem;margin-top:.5rem;">
-                      <button class="btn btn-primary btn-sm" onclick="applyAiNextStep()">Brug dette</button>
-                      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('d-nextstep-suggestion').style.display='none'">Afvis</button>
-                    </div>
-                  </div>
+
+            <!-- TOP ROW: info -->
+            <div style="display:flex;flex-wrap:wrap;gap:1.5rem;margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid var(--border);">
+              <div><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Relation</div><span id="d-relation" style="font-size:.88rem;"></span></div>
+              <div><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Status</div><span id="d-networkstatus" style="font-size:.88rem;"></span></div>
+              <div><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Virksomhed</div><span id="d-company" style="font-size:.88rem;"></span></div>
+              <div style="flex:1;min-width:200px;"><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Noter</div><span id="d-notes" style="font-size:.84rem;color:var(--muted);"></span></div>
+            </div>
+
+            <!-- NEXT STEP -->
+            <div style="margin-bottom:1.2rem;padding:.8rem;background:var(--faint);border-radius:8px;border-left:3px solid var(--amber);">
+              <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">Næste skridt</div>
+              <div id="d-nextstep" style="color:var(--amber);font-weight:500;font-size:.9rem;"></div>
+              <div style="font-size:.78rem;color:var(--muted);margin-top:.2rem;">Frist: <span id="d-due" style="color:var(--red);font-weight:500;"></span></div>
+              <!-- AI suggestion -->
+              <div id="d-nextstep-suggestion" style="display:none;margin-top:.6rem;background:var(--blue-light);border-radius:6px;padding:.6rem;">
+                <div style="font-size:.72rem;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">💡 AI foreslår</div>
+                <div id="d-nextstep-suggestion-text" style="font-size:.84rem;color:var(--blue);line-height:1.5;"></div>
+                <div style="display:flex;gap:.4rem;margin-top:.5rem;">
+                  <button class="btn btn-primary btn-sm" onclick="applyAiNextStep()">Brug dette</button>
+                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('d-nextstep-suggestion').style.display='none'">Afvis</button>
                 </div>
-                <div class="field mt2"><label>Due</label><span id="d-due" style="color:var(--red);font-weight:500;"></span></div>
-                <div class="field mt2">
-                  <label>Linked applications</label>
-                  <div id="d-linked-apps" style="margin-top:.3rem;display:flex;flex-direction:column;gap:.3rem;"></div>
-                  <div style="margin-top:.6rem;">
-                    <label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.3rem;">Link to application</label>
-                    <div style="display:flex;gap:.5rem;">
-                      <select id="d-link-app-select" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.35rem .6rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);flex:1;"></select>
-                      <button class="btn btn-ghost btn-sm" onclick="linkAppToContact()">Link</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <!-- RIGHT: activity log -->
-              <div>
-                <div id="contact-log-list"></div>
               </div>
             </div>
+
+            <!-- LINKED APPS -->
+            <div style="margin-bottom:1.2rem;">
+              <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem;">Tilknyttede ansøgninger</div>
+              <div id="d-linked-apps" style="display:flex;flex-direction:column;gap:.3rem;margin-bottom:.5rem;"></div>
+              <div style="display:flex;gap:.5rem;">
+                <select id="d-link-app-select" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.35rem .6rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);flex:1;"></select>
+                <button class="btn btn-ghost btn-sm" onclick="linkAppToContact()">Link</button>
+              </div>
+            </div>
+
+            <!-- ACTIVITY LOG — full width -->
+            <div>
+              <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">Aktivitetslog</div>
+              <div id="contact-log-list"></div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -1374,9 +1381,10 @@ function openContactDetail(id) {
   }
 
   document.getElementById('detail-contact-name').textContent = c.name;
-  document.getElementById('d-title').textContent = c.title||'—';
+  const sub = document.getElementById('d-title-sub');
+  if (sub) sub.textContent = [c.title, c.company].filter(Boolean).join(' · ');
   document.getElementById('d-company').textContent = c.company||'—';
-  document.getElementById('d-relation').innerHTML = `<span class="badge badge-blue">${c.relation}</span>`;
+  document.getElementById('d-relation').innerHTML = c.relation ? c.relation.split(',').map(r=>`<span class="badge badge-blue" style="margin-right:.3rem;">${r.trim()}</span>`).join('') : '—';
   document.getElementById('d-notes').textContent = c.notes||'—';
 
   const statusEl = document.getElementById('d-networkstatus');
@@ -1392,6 +1400,7 @@ function openContactDetail(id) {
   renderLinkedApps(c);
   populateAppLinkSelect(c);
   document.getElementById('contact-detail').classList.add('open');
+  setTimeout(() => document.getElementById('contact-detail').scrollIntoView({behavior:'smooth', block:'start'}), 50);
   // Auto-suggest next step based on log history
   if (getApiKey()) aiSuggestNextStep(c);
 }
