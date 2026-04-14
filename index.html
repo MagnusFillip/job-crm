@@ -440,7 +440,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
       </div>
 
       <!-- APPLICATION DETAIL -->
-      <div class="detail-panel mt3" id="app-detail">
+      <div class="detail-panel mt3" id="app-detail" style="display:none;">
         <div class="card">
           <div class="card-header">
             <div>
@@ -602,14 +602,14 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
         <div class="field"><label>Company</label><select id="ct-company"><option value="">— Select —</option></select></div>
         <div class="field">
           <label>Relation (vælg alle der passer)</label>
-          <div id="ct-relation-checks" style="display:flex;flex-wrap:wrap;gap:.4rem .8rem;margin-top:.3rem;">
-            <label style="display:flex;align-items:center;gap:.3rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Peer"> Peer</label>
-            <label style="display:flex;align-items:center;gap:.3rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Leader above me"> Leder over mig</label>
-            <label style="display:flex;align-items:center;gap:.3rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Leader above me (2nd level)"> Leder 2. niveau</label>
-            <label style="display:flex;align-items:center;gap:.3rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Recruiter"> Recruiter</label>
-            <label style="display:flex;align-items:center;gap:.3rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Network"> Netværk</label>
-            <label style="display:flex;align-items:center;gap:.3rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Decision maker"> Besluttningstager</label>
-            <label style="display:flex;align-items:center;gap:.3rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Former colleague"> Tidligere kollega</label>
+          <div id="ct-relation-checks" style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem .5rem;margin-top:.3rem;">
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="Peer"> Peer</label>
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="Leader above me"> Leder over mig</label>
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="Leader above me (2nd level)"> Leder 2. niveau</label>
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="Recruiter"> Recruiter</label>
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="Network"> Netværk</label>
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="Decision maker"> Beslutningstager</label>
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="Former colleague"> Tidligere kollega</label>
           </div>
         </div>
       </div>
@@ -852,8 +852,12 @@ function renderPage(p) {
   if (p==='companies') renderCompanies();
   if (p==='contacts') renderContacts();
   if (p==='applications') {
-    // Reset to 'all' each time page is navigated to
+    // Always close detail and reset to 'all'
     appFilter = 'all';
+    const appDetailEl = document.getElementById('app-detail');
+    appDetailEl.classList.remove('open');
+    appDetailEl.style.display = 'none';
+    currentAppId = null;
     document.querySelectorAll('#page-applications .tab').forEach(t => {
       const tabStatus = t.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] || 'all';
       t.classList.toggle('active', tabStatus === 'all');
@@ -1426,7 +1430,10 @@ function filterApps(status, el) {
   appFilter = status;
   document.querySelectorAll('#page-applications .tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  closeAppDetail();
+  const appDetailEl = document.getElementById('app-detail');
+  appDetailEl.classList.remove('open');
+  appDetailEl.style.display = 'none';
+  currentAppId = null;
   renderApplications();
 }
 
@@ -1716,7 +1723,9 @@ function openAppDetail(id) {
 
   renderAppLog(a);
   suggestNextAction(a);
-  document.getElementById('app-detail').classList.add('open');
+  const detailEl = document.getElementById('app-detail');
+  detailEl.style.display = 'block';
+  detailEl.classList.add('open');
 }
 
 function renderAppLog(a) {
@@ -1760,7 +1769,9 @@ function suggestNextAction(a) {
 }
 
 function closeAppDetail() {
-  document.getElementById('app-detail').classList.remove('open');
+  const el = document.getElementById('app-detail');
+  el.classList.remove('open');
+  el.style.display = 'none';
   currentAppId = null;
 }
 
