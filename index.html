@@ -203,6 +203,11 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 .star-btn { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--border); padding: 0 .1rem; transition: color .1s; line-height: 1; }
 .star-btn.active { color: #e8c547; }
 .star-btn:hover { color: #e8c547; }
+
+/* LOG TYPE BUTTONS */
+.log-type-btn { font-family: 'Epilogue', sans-serif; font-size: .78rem; padding: .3rem .6rem; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); cursor: pointer; transition: all .15s; color: var(--muted); }
+.log-type-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+.log-type-btn:hover { border-color: var(--text); color: var(--text); }
 </style>
 </head>
 <body>
@@ -378,7 +383,17 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
                 <div class="field mt2"><label>Relation</label><span id="d-relation"></span></div>
                 <div class="field mt2"><label>Network status</label><span id="d-networkstatus"></span></div>
                 <div class="field mt2"><label>Notes</label><span id="d-notes" style="color:var(--muted);font-size:.84rem;line-height:1.5;"></span></div>
-                <div class="field mt2"><label>Next step</label><span id="d-nextstep" style="color:var(--amber);font-weight:500;"></span></div>
+                <div class="field mt2"><label>Next step</label>
+                  <div id="d-nextstep" style="color:var(--amber);font-weight:500;"></div>
+                  <div id="d-nextstep-suggestion" style="display:none;margin-top:.5rem;background:var(--blue-light);border-radius:6px;padding:.6rem;">
+                    <div style="font-size:.72rem;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem;">💡 AI foreslår</div>
+                    <div id="d-nextstep-suggestion-text" style="font-size:.84rem;color:var(--blue);line-height:1.5;"></div>
+                    <div style="display:flex;gap:.4rem;margin-top:.5rem;">
+                      <button class="btn btn-primary btn-sm" onclick="applyAiNextStep()">Brug dette</button>
+                      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('d-nextstep-suggestion').style.display='none'">Afvis</button>
+                    </div>
+                  </div>
+                </div>
                 <div class="field mt2"><label>Due</label><span id="d-due" style="color:var(--red);font-weight:500;"></span></div>
                 <div class="field mt2">
                   <label>Linked applications</label>
@@ -661,7 +676,17 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
         <div class="field"><label>Deadline</label><input type="date" id="a-deadline"></div>
         <div class="field"><label>Follow-up date</label><input type="date" id="a-followup"></div>
       </div>
-      <div class="field"><label>Relevant contacts</label><input id="a-contacts"></div>
+      <div class="field">
+        <label>Relevante kontakter</label>
+        <div id="a-contacts-list" style="display:flex;flex-wrap:wrap;gap:.3rem;min-height:28px;margin-bottom:.3rem;"></div>
+        <div style="display:flex;gap:.5rem;">
+          <select id="a-contacts-add" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.35rem .6rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);flex:1;">
+            <option value="">— Tilføj kontakt —</option>
+          </select>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addContactToApp()">Tilføj</button>
+        </div>
+        <input type="hidden" id="a-contacts">
+      </div>
       <div class="field"><label>Outcome</label><input id="a-outcome"></div>
       <div class="field-row">
         <div class="field"><label>Notes</label><textarea id="a-notes"></textarea></div>
@@ -703,19 +728,29 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 <!-- LOG MODAL -->
 <div class="modal-overlay" id="modal-log">
   <div class="modal">
-    <div class="modal-header"><h3>Log interaction</h3><button class="modal-close" onclick="closeModal('log')">✕</button></div>
+    <div class="modal-header"><h3 id="log-modal-title">Log interaction</h3><button class="modal-close" onclick="closeModal('log')">✕</button></div>
     <div class="modal-body">
-      <div class="field-row">
-        <div class="field"><label>Date</label><input type="date" id="log-date"></div>
-        <div class="field"><label>Type</label><select id="log-type"><option>Phone call</option><option>Email</option><option>Coffee meeting</option><option>LinkedIn message</option><option>Video call</option><option>In-person</option></select></div>
+      <!-- Quick type buttons -->
+      <div class="field">
+        <label>Type</label>
+        <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.3rem;">
+          <button type="button" class="log-type-btn active" onclick="setLogType(this,'LinkedIn message')">💬 LinkedIn</button>
+          <button type="button" class="log-type-btn" onclick="setLogType(this,'Email')">📧 Email</button>
+          <button type="button" class="log-type-btn" onclick="setLogType(this,'Phone call')">📞 Telefon</button>
+          <button type="button" class="log-type-btn" onclick="setLogType(this,'Coffee meeting')">☕ Kaffe</button>
+          <button type="button" class="log-type-btn" onclick="setLogType(this,'Video call')">💻 Video</button>
+          <button type="button" class="log-type-btn" onclick="setLogType(this,'In-person')">🤝 Møde</button>
+        </div>
+        <input type="hidden" id="log-type" value="LinkedIn message">
       </div>
-      <div class="field"><label>What happened / outcome</label><textarea id="log-outcome"></textarea></div>
+      <div class="field"><label>Dato</label><input type="date" id="log-date"></div>
+      <div class="field"><label>Hvad skete der?</label><textarea id="log-outcome" placeholder="Kort beskrivelse af interaktionen og hvad der blev aftalt…" style="min-height:70px;"></textarea></div>
       <div class="field-row">
-        <div class="field"><label>Next step</label><input id="log-nextstep"></div>
-        <div class="field"><label>Due date</label><input type="date" id="log-due"></div>
+        <div class="field"><label>Næste skridt</label><input id="log-nextstep" placeholder="Hvad skal der ske nu?"></div>
+        <div class="field"><label>Senest dato</label><input type="date" id="log-due"></div>
       </div>
     </div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('log')">Cancel</button><button class="btn btn-primary" onclick="saveLog()">Save log</button></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('log')">Annuller</button><button class="btn btn-primary" onclick="saveLog()">Gem</button></div>
   </div>
 </div>
 
@@ -880,6 +915,8 @@ function formatDate(str) {
 }
 
 // DASHBOARD
+let _queueItems = [];
+
 function renderDashboard() {
   const today = new Date(); today.setHours(0,0,0,0);
   const in48 = new Date(today); in48.setDate(in48.getDate()+2);
@@ -892,32 +929,51 @@ function renderDashboard() {
 
   const items = [];
   db.applications.forEach(a => {
-    // Deadlines only relevant for Wishlist/Draft (not yet applied)
     if (a.deadline && (a.status==='Wishlist'||a.status==='Draft')) {
       const d=new Date(a.deadline);
-      if(d>=today&&d<=in48) items.push({label:`Deadline: ${a.role} @ ${a.company}`,sub:'',date:a.deadline,urgency:d<=today?'red':'amber'});
+      if(d>=today&&d<=in48) items.push({label:`Deadline: ${a.role} @ ${a.company}`,sub:'',date:a.deadline,urgency:d<=today?'red':'amber',type:'app-deadline',id:a.id});
     }
-    // Follow-ups for all active applications
     if (a.followup && a.status!=='Rejected') {
       const d=new Date(a.followup);
-      if(d>=today&&d<=in48) items.push({label:`Follow up: ${a.role} @ ${a.company}`,sub:a.outcome,date:a.followup,urgency:'amber'});
+      if(d>=today&&d<=in48) items.push({label:`Follow up: ${a.role} @ ${a.company}`,sub:a.outcome,date:a.followup,urgency:'amber',type:'app-followup',id:a.id});
     }
   });
   db.contacts.forEach(c => {
-    if (c.due) { const d=new Date(c.due); if(d>=today&&d<=in48) items.push({label:`${c.nextStep||'Action needed'} — ${c.name}`,sub:c.company,date:c.due,urgency:d<=today?'red':'amber'}); }
+    if (c.due) {
+      const d=new Date(c.due);
+      if(d>=today&&d<=in48) items.push({label:`${c.nextStep||'Action needed'} — ${c.name}`,sub:c.company,date:c.due,urgency:d<=today?'red':'amber',type:'contact',id:c.id});
+    }
   });
   items.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  _queueItems = items;
 
   const qEl = document.getElementById('queue-list');
-  qEl.innerHTML = items.length ? items.map(i=>`
-    <div class="queue-item">
-      <div class="queue-dot dot-${i.urgency}"></div>
-      <div class="queue-body">
-        <div class="q-title">${i.label}</div>
-        ${i.sub?`<div class="q-sub">${i.sub}</div>`:''}
-        <div class="q-date">${formatDate(i.date)}</div>
-      </div>
-    </div>`).join('') : '<div class="empty"><div class="empty-icon">✅</div><p>Nothing urgent in the next 48 hours</p></div>';
+  if (!items.length) {
+    qEl.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><p>Nothing urgent in the next 48 hours</p></div>';
+  } else {
+    qEl.innerHTML = items.map((item, idx) => `
+      <div class="queue-item" id="qi-${idx}">
+        <div class="queue-dot dot-${item.urgency}" style="margin-top:.35rem;"></div>
+        <div class="queue-body" style="flex:1;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;">
+            <div>
+              <div class="q-title">${item.label}</div>
+              ${item.sub?`<div class="q-sub">${item.sub}</div>`:''}
+              <div class="q-date">${formatDate(item.date)}</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="flex-shrink:0;font-size:.75rem;" onclick="openQueueDone(${idx})">✓ Done</button>
+          </div>
+          <div id="qi-done-${idx}" style="display:none;margin-top:.6rem;background:var(--faint);border-radius:6px;padding:.7rem;">
+            <div class="field-row" style="gap:.5rem;margin-bottom:.4rem;">
+              <div class="field"><label style="font-size:.72rem;">Hvad skete der?</label><input id="qi-comment-${idx}" placeholder="Kort note om udfaldet…" style="font-size:.82rem;"></div>
+              <div class="field"><label style="font-size:.72rem;">Næste dato</label><input type="date" id="qi-date-${idx}" style="font-size:.82rem;"></div>
+            </div>
+            <input id="qi-nextstep-${idx}" placeholder="Næste skridt (valgfrit)…" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.4rem .6rem;border:1px solid var(--border);border-radius:5px;background:var(--surface);width:100%;margin-bottom:.4rem;">
+            <button class="btn btn-primary btn-sm" onclick="confirmQueueDone(${idx})" style="width:100%;">Gem og luk</button>
+          </div>
+        </div>
+      </div>`).join('');
+  }
 
   const colors = {Wishlist:'purple',Draft:'grey',Sent:'blue',Interview:'green',Offer:'green',Rejected:'red'};
   document.getElementById('pipeline-view').innerHTML = ['Wishlist','Draft','Sent','Interview','Offer','Rejected'].map(s=>{
@@ -928,7 +984,7 @@ function renderDashboard() {
   const sorted=[...db.contacts].sort((a,b)=>(b.lastContact||'')>(a.lastContact||'')?1:-1).slice(0,6);
   document.getElementById('recent-contacts-body').innerHTML = sorted.map(c=>`
     <tr>
-      <td><strong>${c.name}</strong></td>
+      <td><strong><a onclick="document.querySelector('[data-page=contacts]').click();setTimeout(()=>openContactDetail('${c.id}'),100);" style="cursor:pointer;color:var(--blue);">${c.name}</a></strong></td>
       <td>${c.company}</td>
       <td>${c.lastContact?formatDate(c.lastContact):'—'}</td>
       <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.nextStep||'—'}</td>
@@ -1242,27 +1298,59 @@ function renderContacts() {
   }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">No contacts found</td></tr>';
 }
 
+function inferContactStatus(c) {
+  const log = c.log || [];
+  if (!log.length) return c.networkStatus || 'Pending reply';
+  const last = [...log].sort((a,b) => (b.date||'').localeCompare(a.date||''))[0];
+  const daysSince = Math.floor((new Date() - new Date(last.date)) / 86400000);
+  const type = (last.type||'').toLowerCase();
+  const outcome = (last.outcome||'').toLowerCase();
+
+  // Closed signals
+  if (outcome.includes('afvist') || outcome.includes('rejected') || outcome.includes('ikke relevant') || outcome.includes('hiring freeze')) return 'Closed';
+  // Warm/active signals
+  if (type.includes('coffee') || type.includes('meeting') || type.includes('phone') || outcome.includes('ja til kaffe') || outcome.includes('mødes')) {
+    return daysSince < 14 ? 'Active ally' : 'Follow up';
+  }
+  // Recent outreach with no reply
+  if (daysSince < 5) return 'Pending reply';
+  if (daysSince < 21) return 'Follow up';
+  if (daysSince > 60) return 'Passive';
+  return c.networkStatus || 'Pending reply';
+}
+
 function openContactDetail(id) {
   currentContactId = id;
   const c = db.contacts.find(x=>x.id===id);
+
+  // Auto-infer and update status from log
+  const inferredStatus = inferContactStatus(c);
+  if (inferredStatus !== c.networkStatus) {
+    c.networkStatus = inferredStatus;
+    saveDB();
+  }
+
   document.getElementById('detail-contact-name').textContent = c.name;
   document.getElementById('d-title').textContent = c.title||'—';
   document.getElementById('d-company').textContent = c.company||'—';
   document.getElementById('d-relation').innerHTML = `<span class="badge badge-blue">${c.relation}</span>`;
   document.getElementById('d-notes').textContent = c.notes||'—';
-  // Add network status line dynamically
+
   const statusEl = document.getElementById('d-networkstatus');
   if (statusEl) {
     const cs={'Active ally':'active','Passive':'passive','Pending reply':'pending','Follow up':'followup','Closed':'closed'};
-    const s = c.networkStatus||'Pending reply';
-    statusEl.innerHTML = `<span class="status-dot status-${cs[s]||'pending'}"></span>${s}`;
+    statusEl.innerHTML = `<span class="status-dot status-${cs[inferredStatus]||'pending'}"></span>${inferredStatus}`;
   }
+
   document.getElementById('d-nextstep').textContent = c.nextStep||'—';
   document.getElementById('d-due').textContent = c.due?formatDate(c.due):'—';
+  document.getElementById('d-nextstep-suggestion').style.display = 'none';
   renderLog(c);
   renderLinkedApps(c);
   populateAppLinkSelect(c);
   document.getElementById('contact-detail').classList.add('open');
+  // Auto-suggest next step based on log history
+  if (getApiKey()) aiSuggestNextStep(c);
 }
 
 function renderLinkedApps(c) {
@@ -1316,15 +1404,152 @@ function editContactFromDetail() {
 
 function renderLog(c) {
   const log = c.log||[];
-  document.getElementById('contact-log-list').innerHTML = log.length ? [...log].reverse().map(l=>`
-    <div class="log-entry">
-      <div class="log-dot"></div>
-      <div>
-        <div class="log-date">${formatDate(l.date)} · ${l.type}</div>
+  const logHtml = log.length ? [...log].map((l, origIdx) => {
+    // Reverse display index for reversed rendering
+    const displayIdx = log.length - 1 - origIdx;
+    const realIdx = log.length - 1 - displayIdx; // = origIdx, but explicit
+    return `
+    <div class="log-entry" id="log-entry-${origIdx}">
+      <div class="log-dot" style="background:var(--blue);margin-top:.3rem;"></div>
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+            <span class="log-date">${formatDate(l.date)}</span>
+            <span style="font-size:.72rem;background:var(--faint);border:1px solid var(--border);border-radius:2rem;padding:.1rem .5rem;">${l.type}</span>
+          </div>
+          <div style="display:flex;gap:.3rem;flex-shrink:0;">
+            <button onclick="deleteLogEntry('${c.id}',${origIdx})" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:.75rem;padding:.1rem .3rem;" title="Slet">🗑</button>
+          </div>
+        </div>
         <div class="log-text">${l.outcome}</div>
-        ${l.nextStep?`<div class="log-next">→ ${l.nextStep}${l.due?' by '+formatDate(l.due):''}</div>`:''}
+        ${l.nextStep?`<div class="log-next" style="display:flex;align-items:center;gap:.3rem;">→ <strong>${l.nextStep}</strong>${l.due?` <span style="color:var(--red);font-size:.75rem;">(${formatDate(l.due)})</span>`:''}</div>`:''}
       </div>
-    </div>`).join('') : '<p style="color:var(--muted);font-size:.82rem;">No interactions logged yet.</p>';
+    </div>`;
+  }).reverse().join('') : '<p style="color:var(--muted);font-size:.82rem;">Ingen aktivitet logget endnu.</p>';
+
+  // Quick inline log form at top
+  const quickForm = `
+    <div style="background:var(--faint);border:1px solid var(--border);border-radius:8px;padding:.8rem;margin-bottom:.8rem;">
+      <div style="font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">+ Log ny aktivitet</div>
+      <div style="display:flex;gap:.4rem;margin-bottom:.5rem;flex-wrap:wrap;">
+        <button type="button" class="log-type-btn active" onclick="setQuickLogType(this,'LinkedIn message')">💬 LinkedIn</button>
+        <button type="button" class="log-type-btn" onclick="setQuickLogType(this,'Email')">📧 Email</button>
+        <button type="button" class="log-type-btn" onclick="setQuickLogType(this,'Phone call')">📞 Telefon</button>
+        <button type="button" class="log-type-btn" onclick="setQuickLogType(this,'Coffee meeting')">☕ Kaffe</button>
+        <button type="button" class="log-type-btn" onclick="setQuickLogType(this,'In-person')">🤝 Møde</button>
+        <input type="hidden" id="quick-log-type" value="LinkedIn message">
+      </div>
+      <textarea id="quick-log-text" placeholder="Hvad skete der? Hvad blev aftalt?" style="font-family:'Epilogue',sans-serif;font-size:.84rem;width:100%;padding:.5rem .7rem;border:1px solid var(--border);border-radius:5px;background:var(--surface);resize:none;height:56px;margin-bottom:.4rem;"></textarea>
+      <div style="display:flex;gap:.5rem;align-items:flex-end;">
+        <div style="flex:1;">
+          <div style="font-size:.72rem;color:var(--muted);margin-bottom:.2rem;">Næste skridt</div>
+          <input id="quick-log-nextstep" placeholder="fx Send CV, Book møde…" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.4rem .6rem;border:1px solid var(--border);border-radius:5px;background:var(--surface);width:100%;">
+        </div>
+        <div>
+          <div style="font-size:.72rem;color:var(--muted);margin-bottom:.2rem;">Frist</div>
+          <input type="date" id="quick-log-due" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.4rem .6rem;border:1px solid var(--border);border-radius:5px;background:var(--surface);">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveQuickLog()" style="align-self:flex-end;">Gem</button>
+      </div>
+    </div>`;
+
+  document.getElementById('contact-log-list').innerHTML = quickForm + logHtml;
+}
+
+function deleteLogEntry(contactId, idx) {
+  const c = db.contacts.find(x=>x.id===contactId);
+  if (!c) return;
+  c.log = (c.log||[]).filter((_,i)=>i!==idx);
+  saveDB();
+  renderLog(c);
+}
+
+let _aiSuggestedNextStep = '';
+
+async function aiSuggestNextStep(contact) {
+  const c = contact || db.contacts.find(x=>x.id===currentContactId);
+  if (!c || !getApiKey()) return;
+
+  const log = c.log||[];
+  const logSummary = log.length
+    ? [...log].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,6)
+        .map(l=>`${l.date} [${l.type}]: ${l.outcome}${l.nextStep?' → '+l.nextStep:''}`)
+        .join('\n')
+    : 'Ingen aktivitet logget endnu.';
+
+  const linkedApps = (c.linkedApps||[]).map(id => {
+    const a = db.applications.find(x=>x.id===id);
+    return a ? `${a.role} @ ${a.company} (${a.status})` : null;
+  }).filter(Boolean).join(', ');
+
+  const system = `Du er en jobsøgningsassistent for Magnus Fillip Pedersen. Baseret på historikken med en kontakt, foreslår du det mest relevante næste konkrete skridt. 
+Vær specifik og handlingsorienteret — ikke generisk. Maks 1-2 sætninger. Returner KUN selve forslaget, ingen indledning.`;
+
+  const msg = `Kontakt: ${c.name}, ${c.title} @ ${c.company}
+Relation: ${c.relation}
+Status: ${c.networkStatus||'Ukendt'}
+${linkedApps ? `Tilknyttede ansøgninger: ${linkedApps}` : ''}
+Nuværende næste skridt: ${c.nextStep||'Ikke sat'}
+
+Aktivitetslog (nyeste først):
+${logSummary}
+
+Hvad er det mest relevante næste skridt nu?`;
+
+  try {
+    const raw = await claudeApi([{role:'user',content:msg}], system, 200);
+    _aiSuggestedNextStep = raw.trim();
+    const suggEl = document.getElementById('d-nextstep-suggestion');
+    const suggText = document.getElementById('d-nextstep-suggestion-text');
+    if (suggEl && suggText && _aiSuggestedNextStep) {
+      suggText.textContent = _aiSuggestedNextStep;
+      suggEl.style.display = 'block';
+    }
+  } catch(e) {
+    // Silently fail — no API key or network issue
+  }
+}
+
+function applyAiNextStep() {
+  if (!_aiSuggestedNextStep || !currentContactId) return;
+  const c = db.contacts.find(x=>x.id===currentContactId);
+  if (!c) return;
+  c.nextStep = _aiSuggestedNextStep;
+  saveDB();
+  document.getElementById('d-nextstep').textContent = c.nextStep;
+  document.getElementById('d-nextstep-suggestion').style.display = 'none';
+  _aiSuggestedNextStep = '';
+}
+  document.getElementById('quick-log-type').value = type;
+  document.querySelectorAll('#contact-log-list .log-type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function saveQuickLog() {
+  if (!currentContactId) return;
+  const text = document.getElementById('quick-log-text').value.trim();
+  if (!text) return alert('Skriv hvad der skete');
+  const nextStep = document.getElementById('quick-log-nextstep').value.trim();
+  const due = document.getElementById('quick-log-due').value;
+  const entry = {
+    date: new Date().toISOString().split('T')[0],
+    type: document.getElementById('quick-log-type').value,
+    outcome: text,
+    nextStep,
+    due
+  };
+  const c = db.contacts.find(x=>x.id===currentContactId);
+  c.log = c.log||[];
+  c.log.push(entry);
+  c.lastContact = entry.date;
+  if (nextStep) c.nextStep = nextStep;
+  if (due) c.due = due;
+  c.outcome = text;
+  saveDB();
+  renderLog(c);
+  // Also refresh contact detail fields
+  document.getElementById('d-nextstep').textContent = c.nextStep||'—';
+  document.getElementById('d-due').textContent = c.due ? formatDate(c.due) : '—';
 }
 
 function closeDetail() {
@@ -1402,6 +1627,112 @@ function renderApplications() {
 }
 
 
+// ─── QUEUE DONE ──────────────────────────────────────────────
+function openQueueDone(idx) {
+  const doneEl = document.getElementById(`qi-done-${idx}`);
+  if (!doneEl) return;
+  doneEl.style.display = doneEl.style.display === 'none' ? 'block' : 'none';
+  const dateEl = document.getElementById(`qi-date-${idx}`);
+  if (dateEl && !dateEl.value) {
+    const d = new Date(); d.setDate(d.getDate()+7);
+    dateEl.value = d.toISOString().split('T')[0];
+  }
+}
+
+function confirmQueueDone(idx) {
+  const item = _queueItems[idx];
+  if (!item) return;
+  const comment = document.getElementById(`qi-comment-${idx}`)?.value.trim() || '';
+  const nextDate = document.getElementById(`qi-date-${idx}`)?.value || '';
+  const nextStep = document.getElementById(`qi-nextstep-${idx}`)?.value.trim() || '';
+  const today = new Date().toISOString().split('T')[0];
+
+  if (item.type === 'contact') {
+    const contact = db.contacts.find(c => c.id === item.id);
+    if (contact) {
+      contact.log = contact.log||[];
+      contact.log.push({ date:today, type:'Action completed', outcome:comment||item.label, nextStep, due:nextDate });
+      contact.lastContact = today;
+      contact.nextStep = nextStep || '';
+      contact.due = nextDate || '';
+      if (comment) contact.outcome = comment;
+    }
+  } else if (item.type === 'app-followup' || item.type === 'app-deadline') {
+    const app = db.applications.find(a => a.id === item.id);
+    if (app) {
+      app.appLog = app.appLog||[];
+      app.appLog.push({ date:today, type:'Follow-up completed', who:'', outcome:comment||'Done', nextStep, due:nextDate });
+      app.followup = nextDate || '';
+    }
+  }
+
+  saveDB();
+  const el = document.getElementById(`qi-${idx}`);
+  if (el) {
+    el.style.opacity = '.4';
+    el.style.textDecoration = 'line-through';
+    setTimeout(() => renderDashboard(), 1200);
+  }
+}
+
+// ─── LOG TYPE BUTTON ─────────────────────────────────────────
+function setLogType(btn, type) {
+  document.getElementById('log-type').value = type;
+  document.querySelectorAll('#modal-log .log-type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ─── APP CONTACT MULTI-SELECT ────────────────────────────────
+let _appContactIds = [];
+
+function populateAppContactSelect() {
+  const sel = document.getElementById('a-contacts-add');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Tilføj kontakt —</option>' +
+    db.contacts.map(c => `<option value="${c.id}">${c.name} (${c.company})</option>`).join('');
+}
+
+function renderAppContactTags() {
+  const el = document.getElementById('a-contacts-list');
+  if (!el) return;
+  el.innerHTML = _appContactIds.map(id => {
+    const c = db.contacts.find(x=>x.id===id);
+    if (!c) return '';
+    return `<span style="display:inline-flex;align-items:center;gap:.3rem;background:var(--blue-light);color:var(--blue);border-radius:2rem;padding:.2rem .6rem;font-size:.78rem;">
+      ${c.name}
+      <button type="button" onclick="removeAppContact('${id}')" style="background:none;border:none;cursor:pointer;color:var(--blue);font-size:.8rem;padding:0;line-height:1;">✕</button>
+    </span>`;
+  }).join('');
+  // Update hidden field
+  const names = _appContactIds.map(id => (db.contacts.find(x=>x.id===id)||{}).name||'').filter(Boolean);
+  document.getElementById('a-contacts').value = names.join(', ');
+}
+
+function addContactToApp() {
+  const sel = document.getElementById('a-contacts-add');
+  const id = sel.value;
+  if (!id || _appContactIds.includes(id)) return;
+  _appContactIds.push(id);
+  sel.value = '';
+  renderAppContactTags();
+}
+
+function removeAppContact(id) {
+  _appContactIds = _appContactIds.filter(x=>x!==id);
+  renderAppContactTags();
+}
+
+function initAppContacts(contactStr) {
+  _appContactIds = [];
+  if (!contactStr) return;
+  // Match names to contact IDs
+  contactStr.split(',').map(s=>s.trim()).forEach(name => {
+    const c = db.contacts.find(x=>x.name.toLowerCase()===name.toLowerCase());
+    if (c && !_appContactIds.includes(c.id)) _appContactIds.push(c.id);
+  });
+  renderAppContactTags();
+}
+
 // ─── MOTIVATION STARS ────────────────────────────────────────
 const MOTIVATION_LABELS = ['','Lav interesse','Måske relevant','Interessant','Stærk kandidat','Drømmestilling'];
 
@@ -1438,7 +1769,14 @@ function filterApps(status, el) {
 }
 
 // MODALS
-function openModal(type) { populateSelects(); document.getElementById('modal-'+type).classList.add('open'); }
+function openModal(type) {
+  populateSelects();
+  if (type === 'application') {
+    _appContactIds = [];
+    renderAppContactTags();
+  }
+  document.getElementById('modal-'+type).classList.add('open');
+}
 function closeModal(type) { document.getElementById('modal-'+type).classList.remove('open'); }
 
 function openNewContact() {
@@ -1476,6 +1814,7 @@ function populateSelects() {
     sel.innerHTML='<option value="">— Select —</option>'+db.companies.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
     sel.value=cur;
   });
+  populateAppContactSelect();
 }
 
 // SAVE COMPANY
@@ -1649,6 +1988,7 @@ function editApplication(id) {
   document.getElementById('a-match-gaps').value=a.matchGaps||'';
   document.getElementById('a-match-angle').value=a.matchAngle||'';
   setMotivation(parseInt(a.motivation)||0);
+  initAppContacts(a.contacts||'');
   if (a.matchScore) showAnalysisPreview(a.matchScore, a.matchStrengths, a.matchGaps, a.matchAngle, a.requirements);
   else document.getElementById('a-analysis-preview').style.display='none';
   openModal('application');
