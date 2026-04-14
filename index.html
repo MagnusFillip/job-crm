@@ -1519,6 +1519,8 @@ function applyAiNextStep() {
   document.getElementById('d-nextstep-suggestion').style.display = 'none';
   _aiSuggestedNextStep = '';
 }
+
+function setQuickLogType(btn, type) {
   document.getElementById('quick-log-type').value = type;
   document.querySelectorAll('#contact-log-list .log-type-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
