@@ -215,7 +215,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
     <h1>Magnus · CRM</h1>
-    <p>Job Search OS</p>
+    <p>Job Search OS · v14-apr</p>
   </div>
   <nav class="nav">
     <div class="nav-item active" data-page="dashboard">⚡ Dashboard</div>
@@ -754,7 +754,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 </div>
 
 <script>
-const DB_KEY = 'magnus_crm_v1';
+const DB_KEY = 'magnus_crm_v14apr';
 function loadDB() { try { return JSON.parse(localStorage.getItem(DB_KEY)) || null; } catch { return null; } }
 function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
 function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
