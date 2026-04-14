@@ -243,6 +243,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
     <span class="topbar-title" id="page-title">Dashboard</span>
     <div style="display:flex;gap:.5rem;align-items:center;">
       <span id="api-status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--border);display:inline-block;" title="AI status"></span>
+      <button class="btn btn-ghost btn-sm" onclick="exportData()" title="Backup data">⬇️ Backup</button>
       <button class="btn btn-primary" onclick="openModal('import')" style="display:flex;align-items:center;gap:.4rem;">📥 Import conversation</button>
     </div>
   </div>
@@ -598,7 +599,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 
 <!-- CONTACT MODAL -->
 <div class="modal-overlay" id="modal-contact">
-  <div class="modal" style="width:560px;">
+  <div class="modal" style="width:600px;">
     <div class="modal-header"><h3 id="contact-modal-title">Add contact</h3><button class="modal-close" onclick="closeModal('contact')">✕</button></div>
     <!-- Tabs -->
     <div style="display:flex;border-bottom:1px solid var(--border);">
@@ -613,19 +614,17 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
         <div class="field"><label>Full name</label><input id="ct-name"></div>
         <div class="field"><label>Title</label><input id="ct-title"></div>
       </div>
-      <div class="field-row">
-        <div class="field"><label>Company</label><select id="ct-company"><option value="">— Select —</option></select></div>
-        <div class="field">
-          <label>Relation (vælg alle der passer)</label>
-          <div id="ct-relation-checks" style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem .5rem;margin-top:.3rem;">
-            <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="Peer"> Peer</label>
-            <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="Leader above me"> Leder over mig</label>
-            <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="Leader above me (2nd level)"> Leder 2. niveau</label>
-            <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="Recruiter"> Recruiter</label>
-            <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="Network"> Netværk</label>
-            <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="Decision maker"> Beslutningstager</label>
-            <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="Former colleague"> Tidligere kollega</label>
-          </div>
+      <div class="field"><label>Company</label><select id="ct-company"><option value="">— Select —</option></select></div>
+      <div class="field">
+        <label>Relation (vælg alle der passer)</label>
+        <div id="ct-relation-checks" style="display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin-top:.4rem;">
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Peer"> Peer</label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Network"> Netværk</label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Former colleague"> Tidligere kollega</label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Leader above me"> Leder over mig</label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Leader above me (2nd level)"> Leder 2. niveau</label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Decision maker"> Beslutningstager</label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;"><input type="checkbox" value="Recruiter"> Recruiter</label>
         </div>
       </div>
       <div class="field-row">
@@ -2692,9 +2691,22 @@ renderApplications = function() {
 };
 
 // INIT — only load seed if no existing data
-if (!loadDB()) {
+const _existingData = loadDB();
+if (!_existingData) {
+  // Check if this looks like a fresh load (no data ever saved) or a data loss
+  const hadData = localStorage.getItem('magnus_crm_had_data');
+  if (hadData) {
+    // Data was there before but is now gone — show warning
+    console.warn('CRM: Data missing! Was previously saved. Check if you are in private mode or if Safari cleared site data.');
+    const msg = document.createElement('div');
+    msg.style.cssText = 'position:fixed;top:56px;left:0;right:0;background:#9b2226;color:white;padding:.8rem 2rem;font-size:.84rem;z-index:999;display:flex;justify-content:space-between;align-items:center;';
+    msg.innerHTML = '⚠️ Data mangler — er du i privat browsing? <a href="#" onclick="confirmReset();this.parentNode.remove();" style="color:white;text-decoration:underline;">Indlæs standard data</a> <button onclick="this.parentNode.remove()" style="background:none;border:none;color:white;cursor:pointer;font-size:1rem;">✕</button>';
+    document.body.appendChild(msg);
+  }
   db = JSON.parse(JSON.stringify(SEED));
   saveDB();
+} else {
+  localStorage.setItem('magnus_crm_had_data', '1');
 }
 renderDashboard();
 updateStats();
