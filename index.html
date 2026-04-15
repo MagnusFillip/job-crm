@@ -215,7 +215,7 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
     <h1>Magnus · CRM</h1>
-    <p>Job Search OS · v16-apr</p>
+    <p>Job Search OS · v17-apr</p>
   </div>
   <nav class="nav">
     <div class="nav-item active" data-page="dashboard">⚡ Dashboard</div>
@@ -671,7 +671,11 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
       <input type="hidden" id="app-edit-id">
       <div class="field"><label>Role title</label><input id="a-role"></div>
       <div class="field-row">
-        <div class="field"><label>Company</label><select id="a-company"><option value="">— Select —</option></select></div>
+        <div class="field">
+          <label>Company</label>
+          <select id="a-company" onchange="checkNewCompany(this)"><option value="">— Select —</option></select>
+          <input id="a-company-new" placeholder="Eller skriv nyt virksomhedsnavn…" style="display:none;margin-top:.4rem;font-family:'Epilogue',sans-serif;font-size:.88rem;padding:.6rem .8rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:100%;">
+        </div>
         <div class="field"><label>Status</label><select id="a-status"><option>Wishlist</option><option>Draft</option><option>Sent</option><option>Interview</option><option>Offer</option><option>Rejected</option></select></div>
       </div>
       <div class="field-row">
@@ -681,11 +685,22 @@ body { font-family: 'Epilogue', sans-serif; background: var(--bg); color: var(--
       <div class="field">
         <label>Relevante kontakter</label>
         <div id="a-contacts-list" style="display:flex;flex-wrap:wrap;gap:.3rem;min-height:28px;margin-bottom:.3rem;"></div>
-        <div style="display:flex;gap:.5rem;">
+        <div style="display:flex;gap:.5rem;margin-bottom:.4rem;">
           <select id="a-contacts-add" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.35rem .6rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);flex:1;">
-            <option value="">— Tilføj kontakt —</option>
+            <option value="">— Vælg eksisterende kontakt —</option>
           </select>
           <button type="button" class="btn btn-ghost btn-sm" onclick="addContactToApp()">Tilføj</button>
+        </div>
+        <div id="a-new-contact-area" style="background:var(--faint);border-radius:8px;padding:.7rem;border:1px solid var(--border);">
+          <div style="font-size:.75rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;">+ Opret ny kontakt</div>
+          <div class="field-row" style="gap:.5rem;">
+            <input id="a-nc-name" placeholder="Navn" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.4rem .6rem;border:1px solid var(--border);border-radius:5px;background:var(--surface);flex:1;">
+            <input id="a-nc-title" placeholder="Titel" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.4rem .6rem;border:1px solid var(--border);border-radius:5px;background:var(--surface);flex:1;">
+          </div>
+          <div style="display:flex;gap:.5rem;margin-top:.4rem;">
+            <input id="a-nc-role" placeholder="Relevans / hvad har jeg brugt dem til" style="font-family:'Epilogue',sans-serif;font-size:.82rem;padding:.4rem .6rem;border:1px solid var(--border);border-radius:5px;background:var(--surface);flex:1;">
+            <button type="button" class="btn btn-primary btn-sm" onclick="createAndAddContact()">Opret</button>
+          </div>
         </div>
         <input type="hidden" id="a-contacts">
       </div>
@@ -1739,10 +1754,66 @@ function setLogType(btn, type) {
 // ─── APP CONTACT MULTI-SELECT ────────────────────────────────
 let _appContactIds = [];
 
+function checkNewCompany(sel) {
+  const newInput = document.getElementById('a-company-new');
+  if (sel.value === '__new__') {
+    newInput.style.display = 'block';
+    newInput.focus();
+  } else {
+    newInput.style.display = 'none';
+  }
+}
+
+function createAndAddContact() {
+  const name = document.getElementById('a-nc-name').value.trim();
+  if (!name) return alert('Skriv kontaktens navn');
+  const title = document.getElementById('a-nc-title').value.trim();
+  const roleNote = document.getElementById('a-nc-role').value.trim();
+
+  // Get company from application modal
+  const companyId = document.getElementById('a-company').value;
+  const companyNewName = document.getElementById('a-company-new').value.trim();
+  let company = companyId ? db.companies.find(c=>c.id===companyId) : null;
+  if (!company && companyNewName) {
+    company = db.companies.find(c=>c.name.toLowerCase()===companyNewName.toLowerCase());
+    if (!company) {
+      company = {id:newId(), name:companyNewName, industry:'—', status:'Active', roles:'', notes:'Added via application.'};
+      db.companies.push(company);
+    }
+  }
+
+  // Check for duplicate
+  let contact = db.contacts.find(c=>c.name.toLowerCase()===name.toLowerCase());
+  if (!contact) {
+    contact = {
+      id: newId(), name, title, company: company?.name||'', companyId: company?.id||'',
+      relation: 'Network', networkStatus: 'Pending reply',
+      lastContact: '', outcome: '', nextStep: '',
+      due: '', notes: roleNote, log: []
+    };
+    db.contacts.push(contact);
+  } else if (roleNote) {
+    // Update notes with relevance info
+    contact.notes = (contact.notes ? contact.notes + ' | ' : '') + roleNote;
+  }
+
+  // Add to app contact list
+  if (!_appContactIds.includes(contact.id)) {
+    _appContactIds.push(contact.id);
+    renderAppContactTags();
+  }
+
+  // Clear fields
+  document.getElementById('a-nc-name').value = '';
+  document.getElementById('a-nc-title').value = '';
+  document.getElementById('a-nc-role').value = '';
+  saveDB();
+}
+
 function populateAppContactSelect() {
   const sel = document.getElementById('a-contacts-add');
   if (!sel) return;
-  sel.innerHTML = '<option value="">— Tilføj kontakt —</option>' +
+  sel.innerHTML = '<option value="">— Vælg eksisterende kontakt —</option>' +
     db.contacts.map(c => `<option value="${c.id}">${c.name} (${c.company})</option>`).join('');
 }
 
@@ -1863,12 +1934,22 @@ function openImportFromContacts() {
 document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('open'); }));
 
 function populateSelects() {
-  ['ct-company','a-company'].forEach(id=>{
-    const sel=document.getElementById(id); if(!sel)return;
-    const cur=sel.value;
-    sel.innerHTML='<option value="">— Select —</option>'+db.companies.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-    sel.value=cur;
-  });
+  // Contact modal company
+  const ctSel = document.getElementById('ct-company');
+  if (ctSel) {
+    const cur = ctSel.value;
+    ctSel.innerHTML = '<option value="">— Select —</option>' + db.companies.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    ctSel.value = cur;
+  }
+  // Application modal company — includes "Ny virksomhed" option
+  const aSel = document.getElementById('a-company');
+  if (aSel) {
+    const cur = aSel.value;
+    aSel.innerHTML = '<option value="">— Select —</option>' +
+      db.companies.map(c=>`<option value="${c.id}">${c.name}</option>`).join('') +
+      '<option value="__new__">+ Ny virksomhed…</option>';
+    aSel.value = cur;
+  }
   populateAppContactSelect();
 }
 
@@ -1991,39 +2072,74 @@ function editContact(id) {
 
 // SAVE APPLICATION
 function saveApplication() {
-  const editId=document.getElementById('app-edit-id').value;
-  const companyId=document.getElementById('a-company').value;
-  const companyName=companyId?(db.companies.find(c=>c.id===companyId)||{}).name||'':'';
-  const obj={
-    id:editId||newId(),
-    role:document.getElementById('a-role').value.trim(),
-    company:companyName, companyId,
-    status:document.getElementById('a-status').value,
-    deadline:document.getElementById('a-deadline').value,
-    followup:document.getElementById('a-followup').value,
-    contacts:document.getElementById('a-contacts').value.trim(),
-    outcome:document.getElementById('a-outcome').value.trim(),
-    notes:document.getElementById('a-notes').value.trim(),
-    motivation:document.getElementById('a-motivation').value,
-    posting:document.getElementById('a-posting').value.trim(),
-    requirements:document.getElementById('a-requirements').value,
-    matchScore:document.getElementById('a-match-score').value,
-    matchStrengths:document.getElementById('a-match-strengths').value,
-    matchGaps:document.getElementById('a-match-gaps').value,
-    matchAngle:document.getElementById('a-match-angle').value,
+  const editId = document.getElementById('app-edit-id').value;
+  let companyId = document.getElementById('a-company').value;
+  let companyName = '';
+
+  // Handle new company
+  if (companyId === '__new__') {
+    const newName = document.getElementById('a-company-new').value.trim();
+    if (!newName) return alert('Skriv virksomhedsnavnet');
+    let existing = db.companies.find(c=>c.name.toLowerCase()===newName.toLowerCase());
+    if (!existing) {
+      existing = {id:newId(), name:newName, industry:'—', status:'Active', roles:'', notes:'Added via application.'};
+      db.companies.push(existing);
+    }
+    companyId = existing.id;
+    companyName = existing.name;
+  } else {
+    companyName = companyId ? (db.companies.find(c=>c.id===companyId)||{}).name||'' : '';
+  }
+
+  const appId = editId || newId();
+  const obj = {
+    id: appId,
+    role: document.getElementById('a-role').value.trim(),
+    company: companyName, companyId,
+    status: document.getElementById('a-status').value,
+    deadline: document.getElementById('a-deadline').value,
+    followup: document.getElementById('a-followup').value,
+    contacts: document.getElementById('a-contacts').value.trim(),
+    outcome: document.getElementById('a-outcome').value.trim(),
+    notes: document.getElementById('a-notes').value.trim(),
+    motivation: document.getElementById('a-motivation').value,
+    posting: document.getElementById('a-posting').value.trim(),
+    requirements: document.getElementById('a-requirements').value,
+    matchScore: document.getElementById('a-match-score').value,
+    matchStrengths: document.getElementById('a-match-strengths').value,
+    matchGaps: document.getElementById('a-match-gaps').value,
+    matchAngle: document.getElementById('a-match-angle').value,
     appLog: editId ? (db.applications.find(a=>a.id===editId)||{}).appLog||[] : [],
   };
-  if(!obj.role)return alert('Role required');
-  if(editId){const i=db.applications.findIndex(a=>a.id===editId);db.applications[i]=obj;}else db.applications.push(obj);
-  saveDB();closeModal('application');document.getElementById('app-edit-id').value='';
+  if (!obj.role) return alert('Role required');
+  if (editId) { const i=db.applications.findIndex(a=>a.id===editId); db.applications[i]=obj; }
+  else db.applications.push(obj);
+
+  // Sync: link this application to all selected contacts
+  _appContactIds.forEach(cid => {
+    const contact = db.contacts.find(x=>x.id===cid);
+    if (contact) {
+      contact.linkedApps = contact.linkedApps||[];
+      if (!contact.linkedApps.includes(appId)) contact.linkedApps.push(appId);
+    }
+  });
+
+  saveDB(); closeModal('application');
+  document.getElementById('app-edit-id').value='';
+  document.getElementById('a-company-new').style.display='none';
+  document.getElementById('a-company-new').value='';
   document.getElementById('a-analysis-preview').style.display='none';
   document.getElementById('a-requirements').value='';
   document.getElementById('a-match-score').value='';
   document.getElementById('a-match-strengths').value='';
   document.getElementById('a-match-gaps').value='';
   document.getElementById('a-match-angle').value='';
+  document.getElementById('a-nc-name').value='';
+  document.getElementById('a-nc-title').value='';
+  document.getElementById('a-nc-role').value='';
   setMotivation(0);
-  renderApplications();updateStats();
+  _appContactIds = [];
+  renderApplications(); updateStats();
 }
 function editApplication(id) {
   const a=db.applications.find(x=>x.id===id);
